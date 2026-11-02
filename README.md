@@ -20,6 +20,8 @@ cp .env.example .env.local   # then fill in values
 npm run dev                  # http://localhost:3000
 ```
 
+If `npm run dev` or `npm run build` fails with "failed to rename file ... os error 32", a file-locking driver on the machine is blocking Turbopack's disk cache. Turn the cache off with `NEXT_DISABLE_FS_CACHE=1` (in `.env.local` or the shell).
+
 ## Supabase
 
 - Create a project at supabase.com (U.S. region). Copy the URL and keys from **Project Settings → API** into `.env.local`.
