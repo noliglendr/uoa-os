@@ -21,7 +21,7 @@ The **Matter Tracker with Deadline Control**, as proposed at Gate 2, with all 14
 
 ## 2. 10-minute tour
 
-Sign in, with your authenticator app, at: `<review link>`
+Sign in, with your authenticator app, at: **https://uoa-os.vercel.app**
 
 | Step | Where | What you should see |
 |---|---|---|

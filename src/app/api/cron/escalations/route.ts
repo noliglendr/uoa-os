@@ -32,7 +32,7 @@ export async function GET(request: Request) {
       .from("deadlines")
       .select("id, title, due_date, raw_due_date, attorney_verified, matter:matters(id, code, stage, attorney_id, status)")
       .eq("status", "open"),
-    db.from("escalations").select("deadline_id, days_before"),
+    db.from("escalations").select("deadline_id, days_before, failed"),
   ]);
   if (error) return Response.json({ error: error.message }, { status: 500 });
 
@@ -45,13 +45,14 @@ export async function GET(request: Request) {
   const emailOf = new Map(users?.users.map((u) => [u.id, u.email ?? ""]) ?? []);
   const active = (staff ?? []).filter((p) => p.active);
 
-  const results: { deadline: string; days_left: number; sent: number; delivered: boolean }[] = [];
+  const results: { deadline: string; days_left: number; sent: number; delivered: boolean; failed: boolean }[] = [];
   for (const d of deadlines ?? []) {
     const matter = Array.isArray(d.matter) ? d.matter[0] : d.matter;
     if (!matter || matter.status === "closed" || matter.status === "declined") continue;
 
     const daysLeft = daysBetween(now, d.due_date);
-    const already = (sent ?? []).filter((s) => s.deadline_id === d.id).map((s) => s.days_before);
+    // A refused email is not "sent": it is retried until it goes out.
+    const already = (sent ?? []).filter((s) => s.deadline_id === d.id && !s.failed).map((s) => s.days_before);
     const due = escalationDue(daysLeft, thresholds, already);
     if (!due) continue;
 
@@ -73,17 +74,21 @@ export async function GET(request: Request) {
     ].join("\n");
 
     const result = await sendEmail(to, subject, body);
-    const { error: insertError } = await db.from("escalations").insert(
+    // A failed attempt is recorded too, and overwritten by the retry (each attempt is logged).
+    const { error: insertError } = await db.from("escalations").upsert(
       due.markSent.map((t) => ({
         deadline_id: d.id,
         days_before: t,
+        sent_at: new Date().toISOString(),
         recipients: to,
         delivered: result.delivered,
+        failed: result.failed,
         detail: t === due.send ? result.detail : `covered by the ${due.send}-day reminder`,
       })),
+      { onConflict: "deadline_id,days_before" },
     );
     if (insertError) return Response.json({ error: insertError.message }, { status: 500 });
-    results.push({ deadline: d.id, days_left: daysLeft, sent: due.send, delivered: result.delivered });
+    results.push({ deadline: d.id, days_left: daysLeft, sent: due.send, delivered: result.delivered, failed: result.failed });
   }
 
   // Engagement not signed by the alert date: alert the attorney once per matter.
@@ -109,14 +114,15 @@ export async function GET(request: Request) {
         `Open: ${appUrl}/matters/${m.id}`,
       ].join("\n"),
     );
+    // Only a sent alert (or a dry run) counts; a refused one is retried on the next run.
     await db.rpc("log_event", {
-      p_event_type: "engagement.alert_sent",
+      p_event_type: result.failed ? "engagement.alert_failed" : "engagement.alert_sent",
       p_entity_type: "matter",
       p_entity_id: m.id,
       p_matter_id: m.id,
       p_payload: { recipients: to.length, delivered: result.delivered, detail: result.detail },
     });
-    engagementAlerts.push(m.code);
+    if (!result.failed) engagementAlerts.push(m.code);
   }
 
   return Response.json({ date: now, reminders: results.length, results, engagement_alerts: engagementAlerts });
