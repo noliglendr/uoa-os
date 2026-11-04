@@ -21,6 +21,7 @@ Add new rows at the bottom. Never edit or delete an old row. If a decision chang
 | 12 | Nov 3, 2026 | D6: BIA appearances use Form EOIR-27 (EOIR-28 for the immigration court). Built that way; listed for Frank's final review. | Noli, under #6 | Recommendation; 8 CFR 1003.38(g), 1003.17 | Decided |
 | 13 | Nov 3, 2026 | Schedule compressed: Increment 1 finished for Frank's review this week (Fri Nov 6), instead of Nov 17. Frank asked to close the matter this week. | Noli (Technical Lead) | Message from Frank, Nov 3 | Decided |
 | 14 | Nov 3, 2026 | D7 (deadline rules) and D9 (real client data) are **not** delegated: they need the attorney himself. Until Frank verifies, every rule shows "Not verified" and only synthetic data is used. D8, D10, D11, D12 run on the safe defaults below until Frank's review. | Noli (Technical Lead) | CLAUDE.md rules 2 and 6 | Decided |
+| 15 | Nov 4, 2026 | Interface update before Increment 2: "sidebar workspace" style (left menu, a "My work" list with approve buttons on the dashboard, matter page with a summary panel and tabs, plain-English history, confirm boxes for permanent actions, phone-friendly). Look only: rules, approvals and history unchanged. Built Nov 4 at Noli's request, so Frank reviews the new interface on Nov 6. Order after that: Increment 2 (documents), AI drafting, automation, full dashboard. | Noli (Technical Lead) | Options A/B/C compared; B recommended | Decided |
 
 ## Open decisions
 

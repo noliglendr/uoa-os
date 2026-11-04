@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
@@ -8,8 +9,11 @@ export type Staff = {
   role: "principal" | "attorney" | "paralegal" | "docketing" | "intake";
 };
 
-/** The signed-in staff member, or a redirect to login. RLS hides everything else. */
-export async function requireStaff() {
+/**
+ * The signed-in staff member, or a redirect to login. RLS hides everything else.
+ * Cached per request, so the layout and the page share one lookup.
+ */
+export const requireStaff = cache(async () => {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims.sub;
@@ -25,7 +29,7 @@ export async function requireStaff() {
     ? { id: profile.id, displayName: profile.display_name, role: profile.role }
     : null;
   return { supabase, staff };
-}
+});
 
 export function isAttorney(staff: Staff | null): boolean {
   return staff?.role === "attorney" || staff?.role === "principal";

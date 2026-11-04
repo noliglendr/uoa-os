@@ -1,7 +1,8 @@
 import { Suspense } from "react";
-import { Badge, Button, Card, ErrorBanner, Hidden, Table, Td, inputClass } from "@/components/ui";
+import { Badge, Button, Card, ErrorBanner, Hidden, Loading, PageHeader, Table, Td, inputClass } from "@/components/ui";
+import { ConfirmButton } from "@/components/confirm-button";
 import { requireStaff } from "@/lib/session";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABELS, formatDate } from "@/lib/labels";
 import { updateStaff } from "./actions";
 import { AddStaffForm } from "./add-staff-form";
@@ -10,11 +11,11 @@ import { AddStaffForm } from "./add-staff-form";
 export default function StaffPage({ searchParams }: PageProps<"/staff">) {
   return (
     <>
-      <h1 className="text-2xl font-semibold">Staff</h1>
+      <PageHeader title="Staff" description="Who can sign in, and in which role. Nobody is deleted: switching access off keeps their name on everything they did." />
       <Suspense fallback={null}>
         <ErrorBanner searchParams={searchParams} />
       </Suspense>
-      <Suspense fallback={<p className="text-sm text-zinc-500">Loading…</p>}>
+      <Suspense fallback={<Loading />}>
         <Staff />
       </Suspense>
     </>
@@ -22,38 +23,34 @@ export default function StaffPage({ searchParams }: PageProps<"/staff">) {
 }
 
 async function Staff() {
-  const { supabase, staff } = await requireStaff();
+  // One database call, alongside the sign-in check. Emails, two-step status
+  // and last sign-in come from Supabase Auth, for the principal only.
+  const supabase = await createClient();
+  const [{ staff }, { data, error }] = await Promise.all([requireStaff(), supabase.rpc("staff_page")]);
+  if (error) throw error;
   const principal = staff?.role === "principal";
-  const { data: profiles } = await supabase.from("profiles").select("*").order("created_at");
-
-  // Emails and MFA status live in Supabase Auth; only the principal sees them.
-  const auth = new Map<string, { email: string; mfa: boolean; lastSignIn: string | null }>();
-  if (principal) {
-    const admin = createAdminClient();
-    const { data } = await admin.auth.admin.listUsers({ perPage: 1000 });
-    await Promise.all(
-      (data?.users ?? []).map(async (u) => {
-        const { data: f } = await admin.auth.admin.mfa.listFactors({ userId: u.id });
-        auth.set(u.id, {
-          email: u.email ?? "",
-          mfa: (f?.factors ?? []).some((x) => x.status === "verified"),
-          lastSignIn: u.last_sign_in_at ?? null,
-        });
-      }),
-    );
-  }
+  const profiles = data as {
+    id: string;
+    display_name: string;
+    role: keyof typeof ROLE_LABELS;
+    active: boolean;
+    email?: string;
+    mfa?: boolean;
+    last_sign_in_at?: string | null;
+  }[];
+  const auth = new Map(profiles.map((p) => [p.id, { email: p.email ?? "", mfa: Boolean(p.mfa), lastSignIn: p.last_sign_in_at ?? null }]));
 
   return (
     <>
       <Card title="People and roles">
         <Table head={principal ? ["Name", "Email", "Role", "Two-step sign-in", "Last sign-in", "Access"] : ["Name", "Role"]}>
-          {(profiles ?? []).map((p) => {
+          {profiles.map((p) => {
             const a = auth.get(p.id);
             const self = p.id === staff?.id;
             return (
               <tr key={p.id}>
                 <Td>
-                  {p.display_name} {self && <span className="text-xs text-zinc-500">(you)</span>}
+                  {p.display_name} {self && <span className="text-xs text-slate-500">(you)</span>}
                 </Td>
                 {principal && <Td className="text-xs">{a?.email}</Td>}
                 <Td>
@@ -82,9 +79,12 @@ async function Staff() {
                       {!self && (
                         <form action={updateStaff} className="mt-1">
                           <Hidden values={{ profile_id: p.id, active: String(!p.active) }} />
-                          <Button variant={p.active ? "danger" : "secondary"} className="text-xs">
+                          <ConfirmButton
+                            variant={p.active ? "danger" : "secondary"}
+                            confirm={p.active ? `Switch off access for ${p.display_name}? They can no longer sign in.` : `Switch access back on for ${p.display_name}?`}
+                          >
                             {p.active ? "Switch off access" : "Switch on access"}
-                          </Button>
+                          </ConfirmButton>
                         </form>
                       )}
                     </Td>
@@ -94,7 +94,7 @@ async function Staff() {
             );
           })}
         </Table>
-        <p className="mt-3 text-xs text-zinc-500">
+        <p className="mt-3 text-xs text-slate-500">
           Nobody is deleted: switching access off keeps their name on everything they did. Every change is logged.
         </p>
       </Card>

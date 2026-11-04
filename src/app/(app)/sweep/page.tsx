@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { Badge, Button, Card, Empty, ErrorBanner, Hidden, Table, Td, inputClass } from "@/components/ui";
+import { Badge, Button, Card, Empty, ErrorBanner, Hidden, Loading, PageHeader, Table, Td, inputClass } from "@/components/ui";
 import { requireStaff } from "@/lib/session";
+import { createClient } from "@/lib/supabase/server";
+
 import { formatDate, stageName } from "@/lib/labels";
 import { recordSweepCheck } from "../actions";
-import { sweepItems } from "./items";
+import { buildSweep, type SweepData } from "./items";
 
 // Weekly status sweep (redline 9): check every pending USCIS case online and
 // every EOIR or federal matter on the court's case information, once a week.
@@ -12,15 +14,14 @@ import { sweepItems } from "./items";
 export default function SweepPage({ searchParams }: PageProps<"/sweep">) {
   return (
     <>
-      <h1 className="text-2xl font-semibold">Weekly status sweep</h1>
-      <p className="max-w-3xl text-sm text-zinc-600 dark:text-zinc-400">
-        Once a week, check each item online (USCIS case status, EOIR case information, court docket) and record the
-        result. If something changed, log it as a notice on the matter so it gets a deadline.
-      </p>
+      <PageHeader
+        title="Weekly status sweep"
+        description="Once a week, check each case online (USCIS case status, EOIR case information, court docket) and record the result. If something changed, log it as a notice on the matter so it gets a deadline."
+      />
       <Suspense fallback={null}>
         <ErrorBanner searchParams={searchParams} />
       </Suspense>
-      <Suspense fallback={<p className="text-sm text-zinc-500">Loading…</p>}>
+      <Suspense fallback={<Loading />}>
         <Sweep />
       </Suspense>
     </>
@@ -28,12 +29,12 @@ export default function SweepPage({ searchParams }: PageProps<"/sweep">) {
 }
 
 async function Sweep() {
-  const { supabase } = await requireStaff();
-  const [{ items, last, due }, { data: profiles }] = await Promise.all([
-    sweepItems(supabase),
-    supabase.from("profiles").select("id, display_name"),
-  ]);
-  const names = Object.fromEntries((profiles ?? []).map((p) => [p.id, p.display_name]));
+  // One database call, alongside the sign-in check.
+  const supabase = await createClient();
+  const [, { data, error }] = await Promise.all([requireStaff(), supabase.rpc("sweep_data")]);
+  if (error) throw error;
+  const { items, last, due } = buildSweep(data as SweepData);
+  const names = data.names as Record<string, string>;
   const dueKeys = new Set(due.map((i) => i.key));
 
   return (
@@ -60,13 +61,13 @@ async function Sweep() {
                   {l ? (
                     <>
                       {formatDate(l.at)} · {names[l.actor] ?? "?"}
-                      <div className={l.result === "changed" ? "text-red-600" : "text-zinc-500"}>
+                      <div className={l.result === "changed" ? "text-red-600" : "text-slate-500"}>
                         {l.result === "changed" ? "Change found" : "No change"}
                         {l.note && `: ${l.note}`}
                       </div>
                     </>
                   ) : (
-                    <span className="text-zinc-500">Never</span>
+                    <span className="text-slate-500">Never</span>
                   )}
                   {dueKeys.has(i.key) && <div><Badge tone="amber">Due</Badge></div>}
                 </Td>
@@ -86,7 +87,7 @@ async function Sweep() {
           })}
         </Table>
       )}
-      <p className="mt-3 text-xs text-zinc-500">
+      <p className="mt-3 text-xs text-slate-500">
         Change found? Open the matter and log the notice (Notices → Log a notice), so it gets a deadline and is routed.
       </p>
     </Card>

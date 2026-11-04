@@ -1,58 +1,79 @@
 import type { ReactNode } from "react";
+import { inputClass } from "./styles";
+
+export { inputClass };
+// Submit button with a saving spinner (a client component).
+export { Button } from "./submit-button";
 
 // Small building blocks shared by every screen. Server components only.
 
-export function Card({ title, actions, children }: { title: ReactNode; actions?: ReactNode; children: ReactNode }) {
+export function PageHeader({ title, description, actions }: { title: ReactNode; description?: ReactNode; actions?: ReactNode }) {
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-base font-semibold">{title}</h2>
-        {actions}
+    <div className="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{title}</h1>
+        {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
       </div>
-      {children}
+      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+    </div>
+  );
+}
+
+export function Card({
+  title,
+  description,
+  actions,
+  children,
+  flush,
+}: {
+  title?: ReactNode;
+  description?: ReactNode;
+  actions?: ReactNode;
+  children: ReactNode;
+  /** No padding around the body (for lists that run edge to edge). */
+  flush?: boolean;
+}) {
+  return (
+    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      {(title || actions) && (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
+          <div>
+            {title && <h2 className="text-sm font-semibold text-slate-900">{title}</h2>}
+            {description && <p className="mt-0.5 text-xs text-slate-500">{description}</p>}
+          </div>
+          {actions}
+        </div>
+      )}
+      <div className={flush ? "" : "p-4"}>{children}</div>
     </section>
   );
 }
 
 const TONES = {
-  gray: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
-  green: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
-  amber: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300",
-  red: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
-  blue: "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300",
+  gray: "bg-slate-100 text-slate-700 ring-slate-200",
+  green: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  amber: "bg-amber-50 text-amber-800 ring-amber-200",
+  red: "bg-red-50 text-red-700 ring-red-200",
+  blue: "bg-navy-50 text-navy-700 ring-navy-200",
+  gold: "bg-gold-100 text-gold-600 ring-gold-300",
 } as const;
 
-export function Badge({ tone = "gray", children }: { tone?: keyof typeof TONES; children: ReactNode }) {
-  return <span className={`inline-block rounded px-1.5 py-0.5 text-xs font-medium ${TONES[tone]}`}>{children}</span>;
-}
+export type Tone = keyof typeof TONES;
 
-export function Button({
-  children,
-  variant = "secondary",
-  ...props
-}: { children: ReactNode; variant?: "primary" | "secondary" | "danger" } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  const styles = {
-    primary: "bg-zinc-900 text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300",
-    secondary:
-      "border border-zinc-300 bg-white hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800",
-    danger: "border border-red-300 bg-white text-red-700 hover:bg-red-50 dark:border-red-800 dark:bg-zinc-900 dark:text-red-400",
-  }[variant];
+export function Badge({ tone = "gray", children }: { tone?: Tone; children: ReactNode }) {
   return (
-    <button type="submit" {...props} className={`rounded px-2.5 py-1 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40 ${styles} ${props.className ?? ""}`}>
+    <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${TONES[tone]}`}>
       {children}
-    </button>
+    </span>
   );
 }
-
-export const inputClass =
-  "rounded border border-zinc-300 bg-white px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900";
 
 export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
   return (
     <label className="flex flex-col gap-1 text-sm">
-      <span className="font-medium">{label}</span>
+      <span className="font-medium text-slate-700">{label}</span>
       {children}
-      {hint && <span className="text-xs text-zinc-500">{hint}</span>}
+      {hint && <span className="text-xs text-slate-500">{hint}</span>}
     </label>
   );
 }
@@ -68,39 +89,57 @@ export function Hidden({ values }: { values: Record<string, string | number | nu
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <p className="text-sm text-zinc-500">{children}</p>;
+  return <p className="py-2 text-sm text-slate-500">{children}</p>;
 }
+
+export { Loading } from "./skeleton";
 
 /** Shows the database's answer when it refused a change (passed as ?error=). */
 export async function ErrorBanner({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const error = (await searchParams).error;
   if (!error) return null;
   return (
-    <p role="alert" className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
-      {String(error)}
+    <p role="alert" className="flex gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+      <span aria-hidden>⚠</span>
+      <span>
+        <strong>Not saved.</strong> {String(error)}
+      </span>
     </p>
   );
 }
 
 export function Table({ head, children }: { head: string[]; children: ReactNode }) {
   return (
-    <div className="overflow-x-auto">
+    <div className="-mx-4 overflow-x-auto">
       <table className="w-full text-left text-sm">
-        <thead className="border-b border-zinc-200 text-xs uppercase text-zinc-500 dark:border-zinc-800">
+        <thead className="border-y border-slate-100 bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-500">
           <tr>
-            {head.map((h) => (
-              <th key={h} className="py-1.5 pr-3 font-medium">
+            {head.map((h, i) => (
+              <th key={i} className="px-4 py-2 font-medium">
                 {h}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900">{children}</tbody>
+        <tbody className="divide-y divide-slate-100">{children}</tbody>
       </table>
     </div>
   );
 }
 
 export function Td({ children, className = "" }: { children?: ReactNode; className?: string }) {
-  return <td className={`py-1.5 pr-3 align-top ${className}`}>{children}</td>;
+  return <td className={`px-4 py-2.5 align-top ${className}`}>{children}</td>;
+}
+
+/** A labelled number on the dashboard. */
+export function Stat({ label, value, tone = "gray", hint }: { label: string; value: ReactNode; tone?: "gray" | "amber" | "red" | "green"; hint?: string }) {
+  const bar = { gray: "bg-slate-300", amber: "bg-gold-400", red: "bg-red-500", green: "bg-emerald-500" }[tone];
+  return (
+    <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+      <span className={`absolute inset-y-0 left-0 w-1 ${bar}`} aria-hidden />
+      <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</div>
+      <div className="mt-1 text-2xl font-semibold text-slate-900">{value}</div>
+      {hint && <div className="text-xs text-slate-500">{hint}</div>}
+    </div>
+  );
 }

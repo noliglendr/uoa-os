@@ -1,6 +1,8 @@
 import { Suspense } from "react";
-import { Badge, Button, Card, ErrorBanner, Hidden, Table, Td, inputClass } from "@/components/ui";
+import { Badge, Button, Card, ErrorBanner, Hidden, Loading, PageHeader, Table, Td, inputClass } from "@/components/ui";
 import { isAttorney, requireStaff } from "@/lib/session";
+import { createClient } from "@/lib/supabase/server";
+
 import { formatDateTime } from "@/lib/labels";
 import { updateRuleNote, verifyRule } from "../actions";
 
@@ -8,16 +10,14 @@ import { updateRuleNote, verifyRule } from "../actions";
 export default function RulesPage({ searchParams }: PageProps<"/rules">) {
   return (
     <>
-      <h1 className="text-2xl font-semibold">Deadline rules</h1>
-      <p className="max-w-3xl text-sm text-zinc-600 dark:text-zinc-400">
-        The system computes deadlines from these rules. Nothing is relied on until the attorney verifies it. The date on a
-        notice always wins over the rule. Changing a window resets its verification. Draft and sources:{" "}
-        <code>docs/deadline-rules.md</code>.
-      </p>
+      <PageHeader
+        title="Deadline rules"
+        description="The system computes deadlines from these rules. Nothing is relied on until the attorney verifies it. The date on a notice always wins over the rule, and changing a window resets its verification."
+      />
       <Suspense fallback={null}>
         <ErrorBanner searchParams={searchParams} />
       </Suspense>
-      <Suspense fallback={<p className="text-sm text-zinc-500">Loading…</p>}>
+      <Suspense fallback={<Loading />}>
         <Rules />
       </Suspense>
     </>
@@ -25,12 +25,13 @@ export default function RulesPage({ searchParams }: PageProps<"/rules">) {
 }
 
 async function Rules() {
-  const { supabase, staff } = await requireStaff();
-  const [{ data: rules }, { data: profiles }] = await Promise.all([
-    supabase.from("deadline_rules").select("*").order("code"),
-    supabase.from("profiles").select("id, display_name"),
-  ]);
-  const names = Object.fromEntries((profiles ?? []).map((p) => [p.id, p.display_name]));
+  // One database call, alongside the sign-in check.
+  const supabase = await createClient();
+  const [{ staff }, { data, error }] = await Promise.all([requireStaff(), supabase.rpc("rules_page")]);
+  if (error) throw error;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rules = data.rules as any[];
+  const names = data.names as Record<string, string>;
   const attorney = isAttorney(staff);
   const verified = rules?.filter((r) => r.attorney_verified).length ?? 0;
 
@@ -43,7 +44,7 @@ async function Rules() {
             <Td>{r.forum}</Td>
             <Td>
               {r.label}
-              {r.kind === "appointment" && <div className="text-xs text-zinc-500">Appointment, prep {r.prep_days} days before</div>}
+              {r.kind === "appointment" && <div className="text-xs text-slate-500">Appointment, prep {r.prep_days} days before</div>}
             </Td>
             <Td>{r.days ? `${r.days} days` : "Date on the notice"}</Td>
             <Td className="text-xs">{r.starts_from}</Td>
@@ -60,7 +61,7 @@ async function Rules() {
               {r.attorney_verified ? (
                 <>
                   <Badge tone="green">Verified</Badge>
-                  <div className="text-xs text-zinc-500">
+                  <div className="text-xs text-slate-500">
                     {names[r.verified_by]} {formatDateTime(r.verified_at)}
                   </div>
                 </>

@@ -1,214 +1,319 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { Badge, Card, Empty, Table, Td } from "@/components/ui";
-import { requireStaff } from "@/lib/session";
+import { Badge, Button, Card, Empty, Hidden, PageHeader, Stat, type Tone } from "@/components/ui";
+import { DashboardSkeleton } from "@/components/skeleton";
+import { LinkPending } from "@/components/link-pending";
+import { ConfirmButton } from "@/components/confirm-button";
+import { Icon } from "@/components/icons";
+import { buttonClass } from "@/components/styles";
+import { requireStaff, isAttorney } from "@/lib/session";
+import { createClient } from "@/lib/supabase/server";
 import { daysBetween, describeDue, today } from "@/lib/deadlines";
 import { GATE_LABELS, ROLE_LABELS, STAGES, formatDate, stageName } from "@/lib/labels";
-import { sweepItems } from "./sweep/items";
+import { approveGate, completeTask, updateDeadline } from "./actions";
+import { buildSweep, type SweepData } from "./sweep/items";
 
-// Principal dashboard: where am I needed, what is due, what is stuck.
+// "My work": where am I needed, what is due, what is stuck.
 export default function Dashboard() {
   return (
-    <>
-      <h1 className="text-2xl font-semibold">Dashboard</h1>
-      <Suspense fallback={<p className="text-sm text-zinc-500">Loading…</p>}>
-        <DashboardContent />
-      </Suspense>
-    </>
+    <Suspense fallback={<DashboardSkeleton />}>
+      <DashboardContent />
+    </Suspense>
   );
 }
 
-type QueueItem = { matterId: string; code: string; what: string; tone: "red" | "amber" | "blue" };
+// Rows come from dashboard_data() as JSON.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Row = any;
+
+type Action = { kind: "gate"; stage: number; cycleId: string | null } | { kind: "verify"; deadlineId: string };
+
+type WorkItem = {
+  matterId: string;
+  title: string;
+  detail?: string;
+  /** red = act today, amber = approval, blue = review */
+  tone: "red" | "amber" | "blue";
+  tab: string;
+  action?: Action;
+  due?: string | null;
+};
+
+const TONE_DOT = { red: "bg-red-500", amber: "bg-gold-400", blue: "bg-navy-400" } as const;
+const TONE_ORDER = { red: 0, amber: 1, blue: 2 } as const;
 
 async function DashboardContent() {
-  const { supabase, staff } = await requireStaff();
+  // One database call for the whole screen, alongside the sign-in check.
+  const supabase = await createClient();
+  const [{ staff }, { data, error }] = await Promise.all([requireStaff(), supabase.rpc("dashboard_data")]);
   if (!staff) {
     return (
-      <p role="alert" className="text-red-600">
+      <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
         Your account has no active role. Ask the principal to set up your access.
       </p>
     );
   }
+  if (error || !data) throw error ?? new Error("Could not load the dashboard.");
+  const attorney = isAttorney(staff);
+  const sweep = buildSweep(data.sweep as SweepData);
+  const lastActivity = data.last_activity as Record<string, string>;
+  const gates = data.gates as Row[];
 
-  const [matters, gates, cycles, deadlines, drafts, filings, events, settings, tasks] = await Promise.all([
-    supabase.from("matters").select("id, code, summary, stage, status, urgent, engagement_alert_date, stage_changed_at"),
-    supabase.from("gates").select("matter_id, cycle_id, stage"),
-    supabase.from("response_cycles").select("id, matter_id, stage, kind").eq("status", "open"),
-    supabase
-      .from("deadlines")
-      .select("id, matter_id, title, kind, due_date, raw_due_date, attorney_verified, rule_code")
-      .eq("status", "open")
-      .order("due_date"),
-    supabase.from("checklist_items").select("matter_id, label").eq("third_party_draft", true).in("status", ["drafted", "attorney_review"]),
-    supabase.from("filings").select("matter_id, form_type, decision, client_informed_at").not("decision", "is", null).is("client_informed_at", null),
-    supabase.from("event_log").select("matter_id, occurred_at").not("matter_id", "is", null).order("occurred_at", { ascending: false }).limit(5000),
-    supabase.from("settings").select("key, value").eq("key", "dashboard.stalled_days"),
-    supabase.from("tasks").select("id, matter_id, title, owner_role, due_date").eq("status", "open").order("due_date"),
-  ]);
-
-  const sweep = await sweepItems(supabase);
   const now = today();
-  const all = matters.data ?? [];
+  const all = data.matters as Row[];
   const open = all.filter((m) => m.status === "prospect" || m.status === "active");
-  const byId = new Map(all.map((m) => [m.id, m]));
-  const code = (id: string) => byId.get(id)?.code ?? "?";
+  const byId = new Map<string, Row>(all.map((m) => [m.id, m]));
   const hasGate = (matterId: string, stage: number, cycleId: string | null = null) =>
-    (gates.data ?? []).some((g) => g.matter_id === matterId && g.stage === stage && g.cycle_id === cycleId);
+    gates.some((g) => g.matter_id === matterId && g.stage === stage && g.cycle_id === cycleId);
+  const openDeadlines = data.deadlines as Row[];
+  const nextDue = (matterId: string) => openDeadlines.find((d) => d.matter_id === matterId)?.due_date ?? null;
 
-  // Sign-off queue: everything waiting on the attorney.
-  const queue: QueueItem[] = [];
+  // Everything waiting on the attorney.
+  const work: WorkItem[] = [];
   for (const m of open) {
     if ([2, 3, 5, 6].includes(m.stage) && !hasGate(m.id, m.stage)) {
-      queue.push({ matterId: m.id, code: m.code, what: GATE_LABELS[m.stage], tone: "amber" });
+      work.push({ matterId: m.id, title: GATE_LABELS[m.stage], detail: `Stage ${m.stage}: ${stageName(m.stage)}`, tone: "amber", tab: "overview", action: { kind: "gate", stage: m.stage, cycleId: null }, due: nextDue(m.id) });
     }
     if (m.stage <= 2 && m.engagement_alert_date && m.engagement_alert_date <= now && !hasGate(m.id, 2)) {
-      queue.push({ matterId: m.id, code: m.code, what: `Engagement not signed by the alert date (${formatDate(m.engagement_alert_date)})`, tone: "red" });
+      work.push({ matterId: m.id, title: "Engagement not signed by the alert date", detail: `Alert date ${formatDate(m.engagement_alert_date)}`, tone: "red", tab: "overview", due: nextDue(m.id) });
     }
   }
-  for (const c of cycles.data ?? []) {
+  for (const c of data.cycles as Row[]) {
     if ((c.stage === 5 || c.stage === 6) && !hasGate(c.matter_id, c.stage, c.id)) {
-      queue.push({ matterId: c.matter_id, code: code(c.matter_id), what: `${c.kind.toUpperCase()} response: ${GATE_LABELS[c.stage]}`, tone: "amber" });
+      work.push({ matterId: c.matter_id, title: `${c.kind.toUpperCase()} response: ${GATE_LABELS[c.stage]}`, tone: "amber", tab: "filings", action: { kind: "gate", stage: c.stage, cycleId: c.id }, due: nextDue(c.matter_id) });
     }
   }
-  for (const d of deadlines.data ?? []) {
-    if (d.kind === "review") queue.push({ matterId: d.matter_id, code: code(d.matter_id), what: d.title, tone: "red" });
-    else if (!d.attorney_verified) {
-      queue.push({ matterId: d.matter_id, code: code(d.matter_id), what: `Verify deadline: ${d.title} (${formatDate(d.due_date)})`, tone: "amber" });
+  for (const d of openDeadlines) {
+    if (d.kind === "review") {
+      work.push({ matterId: d.matter_id, title: d.title, detail: "Set a deadline or record “no deadline”", tone: "red", tab: "notices", due: d.due_date });
+    } else if (!d.attorney_verified) {
+      work.push({ matterId: d.matter_id, title: `Verify deadline: ${d.title}`, detail: `Computed due date ${formatDate(d.due_date)}${d.rule_code ? ` (rule ${d.rule_code})` : ""}`, tone: "amber", tab: "overview", action: { kind: "verify", deadlineId: d.id }, due: d.due_date });
     }
   }
-  for (const i of drafts.data ?? []) {
-    queue.push({ matterId: i.matter_id, code: code(i.matter_id), what: `Review third-party draft: ${i.label}`, tone: "blue" });
+  for (const i of data.drafts as Row[]) {
+    work.push({ matterId: i.matter_id, title: `Review third-party draft: ${i.label}`, detail: "Before it goes out for signature", tone: "blue", tab: "filings", due: nextDue(i.matter_id) });
   }
-  for (const f of filings.data ?? []) {
-    queue.push({ matterId: f.matter_id, code: code(f.matter_id), what: `Tell the client: ${f.form_type} ${f.decision}`, tone: "red" });
+  for (const f of data.untold as Row[]) {
+    work.push({ matterId: f.matter_id, title: `Tell the client: ${f.form_type} ${f.decision}`, detail: "The attorney tells the client, not the system", tone: "red", tab: "filings" });
   }
+  work.sort((a, b) => TONE_ORDER[a.tone] - TONE_ORDER[b.tone] || (a.due ?? "9999").localeCompare(b.due ?? "9999"));
 
-  const upcoming = (deadlines.data ?? []).filter((d) => daysBetween(now, d.due_date) <= 30);
+  const upcoming = openDeadlines.filter((d) => daysBetween(now, d.due_date) <= 30);
+  const dueThisWeek = openDeadlines.filter((d) => daysBetween(now, d.due_date) <= 7).length;
 
-  const stalledDays = Number(settings.data?.[0]?.value ?? 14);
-  const lastEvent = new Map<string, string>();
-  for (const e of events.data ?? []) if (!lastEvent.has(e.matter_id)) lastEvent.set(e.matter_id, e.occurred_at);
+  const stalledDays = Number(data.stalled_days ?? 14);
   const stalled = open
-    .map((m) => ({ m, last: lastEvent.get(m.id) ?? m.stage_changed_at }))
+    .map((m) => ({ m, last: (lastActivity[m.id] ?? m.stage_changed_at) as string }))
     .filter(({ last }) => daysBetween(last.slice(0, 10), now) >= stalledDays);
 
-  const myTasks = (tasks.data ?? []).filter(
+  const myTasks = (data.tasks as Row[]).filter(
     (t) => t.owner_role === staff.role || (staff.role === "principal" && t.owner_role === "attorney"),
   );
 
+  const longDate = new Date(`${now}T12:00:00`).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+  const firstName = staff.displayName.split(/\s+/)[0];
+
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <Card title={<>Sign-off queue <Badge tone={queue.length ? "amber" : "green"}>{queue.length}</Badge></>}>
-        {queue.length === 0 ? (
-          <Empty>Nothing is waiting for the attorney.</Empty>
-        ) : (
-          <ul className="space-y-1.5 text-sm">
-            {queue.map((q, i) => (
-              <li key={i} className="flex gap-2">
-                <Badge tone={q.tone}>{q.code}</Badge>
-                <Link href={`/matters/${q.matterId}`} className="hover:underline">
-                  {q.what}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+    <>
+      <PageHeader title={`Welcome, ${firstName}`} description={longDate} />
 
-      <Card title="Deadlines in the next 30 days">
-        {upcoming.length === 0 ? (
-          <Empty>No open deadlines in the next 30 days.</Empty>
-        ) : (
-          <Table head={["Due", "", "Matter", "Deadline", "Verified"]}>
-            {upcoming.map((d) => {
-              const left = daysBetween(now, d.due_date);
-              return (
-                <tr key={d.id}>
-                  <Td className="whitespace-nowrap">{formatDate(d.due_date)}</Td>
-                  <Td className="whitespace-nowrap">
-                    <Badge tone={left < 0 ? "red" : left <= 7 ? "amber" : "gray"}>{describeDue(d.due_date, now)}</Badge>
-                  </Td>
-                  <Td>
-                    <Link href={`/matters/${d.matter_id}`} className="font-medium hover:underline">
-                      {code(d.matter_id)}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat label={attorney ? "Needs you" : "With the attorney"} value={work.length} tone={work.length ? "amber" : "green"} hint="Approvals and reviews" />
+        <Stat label="Due in 7 days" value={dueThisWeek} tone={dueThisWeek ? "red" : "green"} hint="Open deadlines" />
+        <Stat label="Open matters" value={open.length} hint={`${all.length} in total`} />
+        <Stat label="Stalled" value={stalled.length} tone={stalled.length ? "red" : "green"} hint={`No activity for ${stalledDays}+ days`} />
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-3">
+        <div className="space-y-5 lg:col-span-2">
+          <Card
+            title={attorney ? "Needs your approval" : "Waiting for the attorney"}
+            description="Most urgent first. Every approval is permanent and logged with your name."
+            flush
+          >
+            {work.length === 0 ? (
+              <div className="flex items-center gap-2 p-4 text-sm text-emerald-700">
+                <Icon name="check" className="h-5 w-5" /> All clear. Nothing is waiting for the attorney.
+              </div>
+            ) : (
+              <ul className="divide-y divide-slate-100">
+                {work.map((w, i) => {
+                  const m = byId.get(w.matterId);
+                  const href = `/matters/${w.matterId}?tab=${w.tab}`;
+                  return (
+                    <li key={i} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
+                      <div className="flex min-w-0 flex-1 gap-3">
+                        <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${TONE_DOT[w.tone]}`} aria-hidden />
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Link href={href} className="font-semibold text-navy-800 hover:underline">
+                              {m?.code}
+                            </Link>
+                            {m?.urgent && <Badge tone="red">Urgent</Badge>}
+                            <span className="text-sm text-slate-900">{w.title}</span>
+                          </div>
+                          <div className="mt-0.5 text-xs text-slate-500">
+                            {[m?.summary, w.detail].filter(Boolean).join(" · ")}
+                            {w.due && <> · next deadline {describeDue(w.due, now)}</>}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 gap-2 pl-5 sm:pl-0">
+                        {attorney && w.action?.kind === "gate" && (
+                          <form action={approveGate}>
+                            <Hidden values={{ back: "/", matter_id: w.matterId, stage: w.action.stage, cycle_id: w.action.cycleId }} />
+                            <ConfirmButton confirm={`${m?.code}: ${w.title}?\n\nThis approval is permanent and is logged with your name and the time.`}>
+                              <Icon name="check" /> Approve
+                            </ConfirmButton>
+                          </form>
+                        )}
+                        {attorney && w.action?.kind === "verify" && (
+                          <form action={updateDeadline}>
+                            <Hidden values={{ back: "/", deadline_id: w.action.deadlineId, field: "verify" }} />
+                            <ConfirmButton confirm={`${m?.code}: ${w.title}\n\nConfirm you checked this date against the notice and the rule. This is logged with your name.`}>
+                              <Icon name="check" /> Verify
+                            </ConfirmButton>
+                          </form>
+                        )}
+                        <Link href={href} className={buttonClass("secondary")}>
+                          Open <LinkPending />
+                        </Link>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Card>
+
+          <Card title={`My tasks · ${ROLE_LABELS[staff.role]}`} flush>
+            {myTasks.length === 0 ? (
+              <div className="p-4">
+                <Empty>No open tasks.</Empty>
+              </div>
+            ) : (
+              <ul className="divide-y divide-slate-100">
+                {myTasks.map((t) => (
+                  <li key={t.id} className="flex items-center gap-3 px-4 py-2.5">
+                    <span className="w-20 shrink-0 text-xs text-slate-500">{t.due_date ? formatDate(t.due_date) : ""}</span>
+                    <Link href={`/matters/${t.matter_id}`} className="min-w-0 flex-1 text-sm hover:underline">
+                      <strong className="text-navy-800">{byId.get(t.matter_id)?.code}</strong> {t.title}
                     </Link>
-                  </Td>
-                  <Td>{d.title}</Td>
-                  <Td>{d.attorney_verified ? <Badge tone="green">Yes</Badge> : <Badge tone="amber">No</Badge>}</Td>
-                </tr>
-              );
-            })}
-          </Table>
-        )}
-      </Card>
+                    <form action={completeTask}>
+                      <Hidden values={{ back: "/", task_id: t.id }} />
+                      <Button>Done</Button>
+                    </form>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </div>
 
-      <Card title="Open matters by stage" actions={<Link href="/matters" className="text-sm underline">All matters</Link>}>
-        <ul className="space-y-1 text-sm">
-          {STAGES.slice(0, 10).map((s) => {
-            const here = open.filter((m) => m.stage === s.n);
-            return (
-              <li key={s.n} className="flex items-baseline gap-2">
-                <span className="w-6 text-right text-zinc-500">{s.n}</span>
-                <span className="w-48">{s.name}</span>
-                <span className="flex flex-wrap gap-1">
-                  {here.map((m) => (
-                    <Link key={m.id} href={`/matters/${m.id}`}>
-                      <Badge tone={m.urgent ? "red" : "blue"}>{m.code}</Badge>
-                    </Link>
-                  ))}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      </Card>
+        <div className="space-y-5">
+          <Card title="Next 30 days" flush>
+            {upcoming.length === 0 ? (
+              <div className="p-4">
+                <Empty>No open deadlines in the next 30 days.</Empty>
+              </div>
+            ) : (
+              <ul className="divide-y divide-slate-100">
+                {upcoming.map((d) => {
+                  const left = daysBetween(now, d.due_date);
+                  const date = new Date(`${d.due_date}T12:00:00`);
+                  return (
+                    <li key={d.id}>
+                      <Link href={`/matters/${d.matter_id}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50">
+                        <span className={`flex w-11 shrink-0 flex-col items-center rounded-md py-1 ${left <= 7 ? "bg-red-50 text-red-700" : "bg-navy-50 text-navy-800"}`}>
+                          <span className="text-[10px] font-semibold uppercase">{date.toLocaleDateString("en-US", { month: "short" })}</span>
+                          <span className="text-base font-semibold leading-none">{date.getDate()}</span>
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm text-slate-900">{d.title}</span>
+                          <span className="block text-xs text-slate-500">
+                            {byId.get(d.matter_id)?.code} · {describeDue(d.due_date, now)}
+                          </span>
+                        </span>
+                        {d.attorney_verified ? (
+                          <span title="Verified by the attorney" className="text-emerald-600">
+                            <Icon name="check" />
+                          </span>
+                        ) : (
+                          <Badge tone="amber">Verify</Badge>
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Card>
 
-      <Card title={`Stalled matters (nothing logged for ${stalledDays}+ days)`}>
-        {stalled.length === 0 ? (
-          <Empty>No stalled matters.</Empty>
-        ) : (
-          <ul className="space-y-1 text-sm">
-            {stalled.map(({ m, last }) => (
-              <li key={m.id}>
-                <Link href={`/matters/${m.id}`} className="font-medium hover:underline">
-                  {m.code}
-                </Link>{" "}
-                stage {m.stage} ({stageName(m.stage)}), last change {formatDate(last)}
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+          <Card title="Matters by stage" actions={<Link href="/matters" className="text-xs font-medium text-navy-700 hover:underline">All matters →</Link>}>
+            {open.length === 0 ? (
+              <Empty>No open matters.</Empty>
+            ) : (
+              <ul className="space-y-2 text-sm">
+                {STAGES.filter((s) => open.some((m) => m.stage === s.n)).map((s) => (
+                  <li key={s.n} className="flex items-center gap-2">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-navy-100 text-xs font-semibold text-navy-800">{s.n}</span>
+                    <span className="flex-1 text-slate-700">{s.name}</span>
+                    <span className="flex flex-wrap justify-end gap-1">
+                      {open
+                        .filter((m) => m.stage === s.n)
+                        .map((m) => (
+                          <Link key={m.id} href={`/matters/${m.id}`}>
+                            <Badge tone={m.urgent ? "red" : "blue"}>{m.code}</Badge>
+                          </Link>
+                        ))}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
 
-      <Card title="Weekly status sweep" actions={<Link href="/sweep" className="text-sm underline">Open sweep</Link>}>
-        <p className="text-sm">
-          {sweep.due.length === 0 ? (
-            <>All {sweep.items.length} pending cases were checked in the last 7 days.</>
-          ) : (
-            <>
-              <Badge tone="amber">{sweep.due.length}</Badge> of {sweep.items.length} pending cases need this week&apos;s
-              online check (USCIS and EOIR).
-            </>
+          <Card title="Weekly status sweep" actions={<Link href="/sweep" className="text-xs font-medium text-navy-700 hover:underline">Open sweep →</Link>}>
+            <SweepMeter done={sweep.items.length - sweep.due.length} total={sweep.items.length} />
+          </Card>
+
+          {stalled.length > 0 && (
+            <Card title={`Stalled (${stalledDays}+ days quiet)`}>
+              <ul className="space-y-1.5 text-sm">
+                {stalled.map(({ m, last }) => (
+                  <li key={m.id}>
+                    <Link href={`/matters/${m.id}`} className="font-semibold text-navy-800 hover:underline">
+                      {m.code}
+                    </Link>{" "}
+                    <span className="text-slate-500">
+                      stage {m.stage}, last change {formatDate(last)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
           )}
-        </p>
-      </Card>
+        </div>
+      </div>
+    </>
+  );
+}
 
-      <Card title={`Open tasks for ${ROLE_LABELS[staff.role]}`}>
-        {myTasks.length === 0 ? (
-          <Empty>No open tasks.</Empty>
-        ) : (
-          <ul className="space-y-1 text-sm">
-            {myTasks.map((t) => (
-              <li key={t.id} className="flex gap-2">
-                <span className="w-24 shrink-0 text-zinc-500">{t.due_date ? formatDate(t.due_date) : ""}</span>
-                <Link href={`/matters/${t.matter_id}`} className="hover:underline">
-                  <strong>{code(t.matter_id)}</strong> {t.title}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+function SweepMeter({ done, total }: { done: number; total: number }) {
+  const pct = total === 0 ? 100 : Math.round((done / total) * 100);
+  const tone: Tone = done === total ? "green" : "amber";
+  return (
+    <div className="space-y-2">
+      <div className="flex items-baseline justify-between text-sm">
+        <span className="text-slate-700">
+          {done} of {total} pending cases checked this week
+        </span>
+        <Badge tone={tone}>{pct}%</Badge>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+        <div className={`h-full rounded-full ${done === total ? "bg-emerald-500" : "bg-gold-400"}`} style={{ width: `${pct}%` }} />
+      </div>
+      <p className="text-xs text-slate-500">USCIS receipts and EOIR matters, checked online once a week.</p>
     </div>
   );
 }

@@ -1,5 +1,4 @@
 import "server-only";
-import type { createClient } from "@/lib/supabase/server";
 import { daysBetween, today } from "@/lib/deadlines";
 import { FORUMS, label } from "@/lib/labels";
 
@@ -17,17 +16,12 @@ type Item = {
   stage: number;
 };
 
-export async function sweepItems(supabase: Awaited<ReturnType<typeof createClient>>) {
-  const [{ data: matters }, { data: filings }, { data: checks }] = await Promise.all([
-    supabase.from("matters").select("id, code, matter_type, stage, status").in("status", ["prospect", "active"]),
-    supabase.from("filings").select("id, matter_id, form_type, forum, ref_no, stage").not("filed_at", "is", null).is("decision", null),
-    supabase
-      .from("event_log")
-      .select("entity_id, occurred_at, actor_id, payload")
-      .eq("event_type", "sweep.checked")
-      .order("occurred_at", { ascending: false })
-      .limit(2000),
-  ]);
+/** Raw sweep data, as returned by the sweep_data() database function. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type SweepData = { matters: any[]; filings: any[]; checks: any[] };
+
+/** Which cases the sweep covers, and which are due this week. */
+export function buildSweep({ matters, filings, checks }: SweepData) {
   const open = new Map((matters ?? []).map((m) => [m.id, m]));
   const items: Item[] = [];
   for (const f of filings ?? []) {

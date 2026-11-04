@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { Button, Card, ErrorBanner, Field, inputClass } from "@/components/ui";
+import { Button, Card, ErrorBanner, Field, PageHeader, inputClass } from "@/components/ui";
 import { MATTER_TYPES, PARTY_ROLES } from "@/lib/labels";
 import { createMatter } from "../../actions";
 
@@ -7,13 +7,13 @@ import { createMatter } from "../../actions";
 export default function NewMatterPage({ searchParams }: PageProps<"/matters/new">) {
   return (
     <>
-      <h1 className="text-2xl font-semibold">New matter (intake)</h1>
+      <PageHeader title="New matter" description="Stage 1, intake: the matter type, urgency and each party for the conflict check." />
       <Suspense fallback={null}>
         <ErrorBanner searchParams={searchParams} />
       </Suspense>
-      <Card title="Matter">
-        <form action={createMatter} className="grid max-w-2xl gap-4">
-          <p className="rounded bg-amber-50 p-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+      <Card title="Matter details">
+        <form action={createMatter} className="grid max-w-2xl gap-5">
+          <p className="rounded-lg border border-gold-300 bg-gold-100/60 px-3 py-2 text-sm text-slate-800">
             Use synthetic codes and role labels only. No client names, A-numbers, receipt numbers or case facts.
           </p>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -35,13 +35,13 @@ export default function NewMatterPage({ searchParams }: PageProps<"/matters/new"
           </Field>
           <div className="flex flex-wrap gap-6 text-sm">
             <label className="flex items-center gap-2">
-              <input type="checkbox" name="urgent" /> Urgent
+              <input type="checkbox" name="urgent" className="h-4 w-4 accent-navy-800" /> Urgent
             </label>
             <label className="flex items-center gap-2">
-              <input type="checkbox" name="hard_deadline" /> Hard deadline already running
+              <input type="checkbox" name="hard_deadline" className="h-4 w-4 accent-navy-800" /> Hard deadline already running
             </label>
           </div>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-slate-500">
             EOIR and federal matters always count as hard-deadline matters: the attorney verifies the deadline at intake,
             before engagement.
           </p>
@@ -50,7 +50,7 @@ export default function NewMatterPage({ searchParams }: PageProps<"/matters/new"
           </Field>
 
           <fieldset className="grid gap-2">
-            <legend className="mb-1 text-sm font-medium">Parties (conflicts are checked for each)</legend>
+            <legend className="mb-1 text-sm font-medium text-slate-700">Parties (conflicts are checked for each)</legend>
             {[0, 1, 2].map((i) => (
               <div key={i} className="flex gap-2">
                 <input name={`party_label_${i}`} placeholder={`Client ${i + 1}`} required={i === 0} className={`${inputClass} flex-1`} />

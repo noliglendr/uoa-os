@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { buttonClass, inputClass } from "@/components/styles";
 
 // Change your own password (new staff replace the temporary one here).
 export default function AccountPage() {
@@ -23,22 +24,24 @@ export default function AccountPage() {
     setStatus({ ok: "Password changed." });
   }
 
-  const input = "rounded border border-zinc-300 bg-white px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900";
   return (
     <>
-      <h1 className="text-2xl font-semibold">Account</h1>
-      <section className="max-w-md rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
-        <h2 className="mb-3 font-semibold">Change password</h2>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Account</h1>
+        <p className="mt-1 text-sm text-slate-500">New staff: replace your temporary password here.</p>
+      </div>
+      <section className="max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="mb-4 text-sm font-semibold text-slate-900">Change password</h2>
         <form onSubmit={onSubmit} className="grid gap-3">
           <label className="grid gap-1 text-sm">
             <span className="font-medium">New password (12+ characters)</span>
-            <input name="password" type="password" autoComplete="new-password" required className={input} />
+            <input name="password" type="password" autoComplete="new-password" required className={inputClass} />
           </label>
           <label className="grid gap-1 text-sm">
             <span className="font-medium">Type it again</span>
-            <input name="confirm" type="password" autoComplete="new-password" required className={input} />
+            <input name="confirm" type="password" autoComplete="new-password" required className={inputClass} />
           </label>
-          <button type="submit" disabled={pending} className="rounded bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900">
+          <button type="submit" disabled={pending} className={buttonClass("primary")}>
             {pending ? "Saving…" : "Change password"}
           </button>
           {status.error && <p role="alert" className="text-sm text-red-600">{status.error}</p>}

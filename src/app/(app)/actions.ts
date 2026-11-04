@@ -47,9 +47,12 @@ async function run(form: FormData, change: (db: Client) => PromiseLike<Result> |
   } catch (e) {
     message = e instanceof Error ? friendly(e) : "Something went wrong.";
   }
-  revalidatePath(path);
-  const [base] = path.split("?");
-  redirect(message ? `${base}?error=${encodeURIComponent(message)}` : base);
+  // Back to the same page and tab; the error (if any) shows in a banner.
+  const url = new URL(path, "http://app");
+  url.searchParams.delete("error");
+  if (message) url.searchParams.set("error", message);
+  revalidatePath(url.pathname);
+  redirect(url.pathname + url.search);
 }
 
 async function loadRule(db: Client, code: string | null): Promise<DeadlineRule | null> {
@@ -369,11 +372,34 @@ export async function updateRuleNote(form: FormData) {
 
 export async function updateSetting(form: FormData) {
   await run(form, async (db) => {
+    // The settings screen sends plain form fields; "kind" says how to read them.
     let value: unknown;
-    try {
-      value = JSON.parse(text(form, "value"));
-    } catch {
-      throw new Error('The value must be valid JSON (for example 7, true, "off" or [21, 14, 7]).');
+    const raw = text(form, "value");
+    switch (text(form, "kind")) {
+      case "bool":
+        value = raw === "true";
+        break;
+      case "number":
+        value = Number(raw);
+        if (!Number.isFinite(value as number) || raw === "") throw new Error("Enter a number.");
+        break;
+      case "numbers":
+        value = raw.split(/[\s,]+/).filter(Boolean).map(Number);
+        if ((value as number[]).some((n) => !Number.isInteger(n) || n < 0)) throw new Error("Enter whole numbers separated by commas.");
+        break;
+      case "choice":
+        value = raw;
+        break;
+      case "multi":
+        value = form.getAll("value").map(String);
+        if ((value as string[]).length === 0) throw new Error("Choose at least one.");
+        break;
+      default:
+        try {
+          value = JSON.parse(raw);
+        } catch {
+          throw new Error('The value must be valid JSON (for example 7, true, "off" or [21, 14, 7]).');
+        }
     }
     return db.from("settings").update({ value }).eq("key", text(form, "key"));
   });

@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
 import { Badge, Button, Card, Empty, Field, Hidden, Table, Td, inputClass } from "@/components/ui";
+import { ConfirmButton } from "@/components/confirm-button";
+import { Icon } from "@/components/icons";
+import { describeEvent } from "@/lib/history";
 import { describeDue, today } from "@/lib/deadlines";
 import {
   APPEARANCE_FORMS,
@@ -81,9 +84,11 @@ function Inline({ action, children, values }: { action: (f: FormData) => Promise
 
 function AddForm({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <details className="mt-3 rounded border border-dashed border-zinc-300 p-2 dark:border-zinc-700">
-      <summary className="cursor-pointer text-sm font-medium">{title}</summary>
-      <div className="mt-2">{children}</div>
+    <details className="group mt-4 rounded-lg border border-dashed border-slate-300 bg-slate-50/50 open:border-solid open:bg-white">
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm font-medium text-navy-700 hover:text-navy-900">
+        <Icon name="plus" /> {title}
+      </summary>
+      <div className="border-t border-slate-100 p-3">{children}</div>
     </details>
   );
 }
@@ -91,11 +96,16 @@ function AddForm({ title, children }: { title: string; children: ReactNode }) {
 function Checks({ checks }: { checks: Check[] }) {
   if (checks.length === 0) return null;
   return (
-    <ul className="space-y-1 text-sm">
+    <ul className="space-y-1.5 text-sm">
       {checks.map((c) => (
-        <li key={c.item} className="flex gap-2">
-          <span className={c.ok ? "text-emerald-600" : "text-red-600"}>{c.ok ? "✓" : "✗"}</span>
-          {c.item}
+        <li key={c.item} className="flex items-start gap-2">
+          <span
+            className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${c.ok ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400"}`}
+            aria-label={c.ok ? "Done" : "Not yet"}
+          >
+            {c.ok ? <Icon name="check" className="h-3 w-3" /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}
+          </span>
+          <span className={c.ok ? "text-slate-600" : "text-slate-900"}>{c.item}</span>
         </li>
       ))}
     </ul>
@@ -136,25 +146,7 @@ export function NextStepCard({ d }: { d: MatterData }) {
   const ids = { matter_id: m.id, back: d.back };
 
   return (
-    <Card title={`Stage ${m.stage}: ${stage.name}`} actions={<span className="text-sm text-zinc-500">Owner: {stage.owner}</span>}>
-      <ol className="mb-4 grid grid-cols-11 gap-1 text-center text-[10px] leading-tight">
-        {STAGES.map((s) => (
-          <li
-            key={s.n}
-            title={s.name}
-            className={`rounded px-0.5 py-1 ${
-              s.n < m.stage
-                ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-300"
-                : s.n === m.stage
-                  ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                  : "bg-zinc-100 text-zinc-500 dark:bg-zinc-900"
-            }`}
-          >
-            <div className="font-semibold">{s.n}</div>
-            <div className="hidden sm:block">{s.name}</div>
-          </li>
-        ))}
-      </ol>
+    <Card title="Next step" description={`Stage ${m.stage}: ${stage.name}`}>
 
       {m.status === "declined" && <p className="text-sm">Declined: {m.decline_reason}. Send the non-engagement letter.</p>}
       {m.status === "closed" && <p className="text-sm">Closed. History and export stay available.</p>}
@@ -162,25 +154,31 @@ export function NextStepCard({ d }: { d: MatterData }) {
       {open && m.stage < 10 && (
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <h3 className="mb-1 text-sm font-medium">Exit gate: must be true to move to stage {m.stage + 1}</h3>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">To move to stage {m.stage + 1}</h3>
             <Checks checks={d.checks} />
           </div>
           <div className="space-y-3">
             {isGateStage &&
               (gate ? (
-                <p className="text-sm">
-                  <Badge tone="green">Approved</Badge> by {d.names[gate.approved_by] ?? "attorney"} on {formatDateTime(gate.approved_at)}
-                  {gate.note && <span className="text-zinc-500">: {gate.note}</span>}
+                <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                  <strong>Approved</strong> by {d.names[gate.approved_by] ?? "attorney"} on {formatDateTime(gate.approved_at)}
+                  {gate.note && <span className="text-emerald-700">: {gate.note}</span>}
                 </p>
               ) : d.attorney ? (
-                <form action={approveGate} className="flex flex-wrap items-center gap-2">
+                <form action={approveGate} className="space-y-2 rounded-lg border border-gold-300 bg-gold-100/50 p-3">
+                  <p className="text-sm font-medium text-slate-900">Your approval is needed</p>
                   <Hidden values={{ ...ids, stage: m.stage }} />
-                  <input name="note" placeholder="Note (optional)" className={`${inputClass} flex-1`} />
-                  <Button variant="primary">{GATE_LABELS[m.stage]}</Button>
+                  <input name="note" placeholder="Note (optional)" className={`${inputClass} w-full`} />
+                  <ConfirmButton
+                    confirm={`${m.code}: ${GATE_LABELS[m.stage]}?\n\nThis approval is permanent and is logged with your name and the time.`}
+                    className="w-full"
+                  >
+                    <Icon name="check" /> {GATE_LABELS[m.stage]}
+                  </ConfirmButton>
                 </form>
               ) : (
-                <p className="text-sm">
-                  <Badge tone="amber">Waiting for the attorney</Badge> {GATE_LABELS[m.stage]}
+                <p className="rounded-lg bg-gold-100/60 px-3 py-2 text-sm text-slate-800">
+                  <strong>Waiting for the attorney:</strong> {GATE_LABELS[m.stage]}
                 </p>
               ))}
             {m.stage === 2 && clients > 1 && (
@@ -189,15 +187,22 @@ export function NextStepCard({ d }: { d: MatterData }) {
               </Inline>
             )}
             <Inline action={advanceStage} values={ids}>
-              <Button variant="primary" disabled={!allOk}>
-                Move to stage {m.stage + 1}: {stageName(m.stage + 1)}
-              </Button>
+              <ConfirmButton
+                variant={allOk ? "primary" : "secondary"}
+                disabled={!allOk}
+                confirm={`Move ${m.code} to stage ${m.stage + 1}: ${stageName(m.stage + 1)}?\n\nThe change is logged with your name.`}
+              >
+                Move to stage {m.stage + 1}: {stageName(m.stage + 1)} <Icon name="arrowRight" />
+              </ConfirmButton>
             </Inline>
+            {!allOk && <p className="text-xs text-slate-500">Available when every item on the left is done.</p>}
             {m.status === "prospect" && d.attorney && (
               <form action={declineMatter} className="flex flex-wrap gap-2">
                 <Hidden values={ids} />
                 <input name="reason" required placeholder="Reason for declining" className={`${inputClass} flex-1`} />
-                <Button variant="danger">Decline matter</Button>
+                <ConfirmButton variant="danger" confirm={`Decline ${m.code}?\n\nThe matter is closed as declined and the non-engagement letter is due.`}>
+                  Decline matter
+                </ConfirmButton>
               </form>
             )}
           </div>
@@ -207,7 +212,7 @@ export function NextStepCard({ d }: { d: MatterData }) {
       {open && m.stage === 10 && (
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <h3 className="mb-1 text-sm font-medium">Closure checklist (R4)</h3>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Closure checklist</h3>
             <Checks checks={d.closure} />
           </div>
           <div className="space-y-3">
@@ -216,12 +221,12 @@ export function NextStepCard({ d }: { d: MatterData }) {
             </Inline>
             {d.attorney ? (
               <Inline action={closeMatter} values={ids}>
-                <Button variant="primary" disabled={!d.closure.every((c) => c.ok)}>
+                <ConfirmButton disabled={!d.closure.every((c) => c.ok)} confirm={`Close ${m.code}?\n\nClosing is permanent and logged with your name.`}>
                   Approve closure
-                </Button>
+                </ConfirmButton>
               </Inline>
             ) : (
-              <p className="text-sm text-zinc-500">The attorney approves closure.</p>
+              <p className="text-sm text-slate-500">The attorney approves closure.</p>
             )}
           </div>
         </div>
@@ -243,9 +248,9 @@ export function DeadlinesCard({ d }: { d: MatterData }) {
       {rows.length === 0 ? (
         <Empty>No deadlines.</Empty>
       ) : (
-        <ul className="divide-y divide-zinc-100 text-sm dark:divide-zinc-900">
+        <ul className="-my-2 divide-y divide-slate-100 text-sm">
           {rows.map((x) => (
-            <li key={x.id} className={`py-2 ${x.status !== "open" ? "text-zinc-400" : ""}`}>
+            <li key={x.id} className={`py-3 ${x.status !== "open" ? "text-slate-400" : ""}`}>
               <div className="flex flex-wrap items-baseline gap-2">
                 <strong>{formatDate(x.due_date)}</strong>
                 {x.status === "open" ? (
@@ -255,10 +260,10 @@ export function DeadlinesCard({ d }: { d: MatterData }) {
                 )}
                 <span>{x.title}</span>
                 {x.kind === "appointment" && <Badge tone="blue">Appointment</Badge>}
-                {x.rule_code && <span className="text-xs text-zinc-500">rule {x.rule_code}</span>}
+                {x.rule_code && <span className="text-xs text-slate-500">rule {x.rule_code}</span>}
                 {x.attorney_verified ? <Badge tone="green">Verified</Badge> : <Badge tone="amber">Not verified</Badge>}
               </div>
-              <div className="text-xs text-zinc-500">
+              <div className="mt-0.5 text-xs text-slate-500">
                 {x.raw_due_date && x.raw_due_date !== x.due_date && <>File by {formatDate(x.raw_due_date)} (weekend or holiday). </>}
                 {x.mailing_extension && <>Includes mailing extension. </>}
                 {x.attendee && <>Attends: {x.attendee}. </>}
@@ -266,10 +271,14 @@ export function DeadlinesCard({ d }: { d: MatterData }) {
                 {x.reschedule_requested && <>Reschedule requested. </>}
               </div>
               {x.status === "open" && (
-                <div className="mt-1 flex flex-wrap gap-1.5">
+                <div className="mt-2 flex flex-wrap gap-1.5">
                   {d.attorney && !x.attorney_verified && x.kind !== "review" && (
                     <Inline action={updateDeadline} values={{ back: d.back, deadline_id: x.id, field: "verify" }}>
-                      <Button>Verify</Button>
+                      <ConfirmButton
+                        confirm={`Verify "${x.title}" due ${formatDate(x.due_date)}?\n\nConfirm you checked this date against the notice and the rule. This is logged with your name.`}
+                      >
+                        <Icon name="check" /> Verify
+                      </ConfirmButton>
                     </Inline>
                   )}
                   {x.kind !== "review" && (
@@ -284,7 +293,9 @@ export function DeadlinesCard({ d }: { d: MatterData }) {
                   )}
                   {d.attorney && x.kind !== "review" && (
                     <Inline action={updateDeadline} values={{ back: d.back, deadline_id: x.id, field: "cancelled" }}>
-                      <Button variant="danger">Cancel</Button>
+                      <ConfirmButton variant="danger" confirm={`Cancel the deadline "${x.title}"?\n\nReminders stop. This is logged with your name.`}>
+                        Cancel
+                      </ConfirmButton>
                     </Inline>
                   )}
                 </div>
@@ -359,14 +370,14 @@ export function NoticesCard({ d }: { d: MatterData }) {
               <tr key={n.id}>
                 <Td>
                   <strong>{label(NOTICE_TYPES, n.notice_type)}</strong>
-                  <div className="text-xs text-zinc-500">{label(CHANNELS, n.channel)}</div>
+                  <div className="text-xs text-slate-500">{label(CHANNELS, n.channel)}</div>
                 </Td>
                 <Td>{filingName(n.filing_id)}</Td>
                 <Td>{formatDate(n.notice_date)}</Td>
                 <Td>{formatDate(n.received_on)}</Td>
                 <Td className="text-xs">
                   {formatDateTime(n.logged_at)}
-                  <div className="text-zinc-500">{d.names[n.logged_by] ?? ""}</div>
+                  <div className="text-slate-500">{d.names[n.logged_by] ?? ""}</div>
                 </Td>
                 <Td>{n.routed_to === "attorney" ? <Badge tone="amber">Attorney, same day</Badge> : <Badge>Docketing</Badge>}</Td>
                 <Td className="text-xs">
@@ -395,7 +406,7 @@ export function NoticesCard({ d }: { d: MatterData }) {
                         <form action={addDeadline} className="mt-1 grid gap-2">
                           <Hidden values={{ ...ids, notice_id: n.id, filing_id: n.filing_id, trigger_date: n.notice_date }} />
                           <DeadlineFields rules={d.rules} compact />
-                          <p className="text-xs text-zinc-500">Then cancel the review item in Deadlines.</p>
+                          <p className="text-xs text-slate-500">Then cancel the review item in Deadlines.</p>
                           <div>
                             <Button variant="primary">Add deadline</Button>
                           </div>
@@ -451,7 +462,7 @@ export function NoticesCard({ d }: { d: MatterData }) {
               <input name="note" className={inputClass} placeholder="No client facts" />
             </Field>
           </div>
-          <fieldset className="rounded bg-zinc-50 p-2 dark:bg-zinc-900">
+          <fieldset className="rounded-lg border border-slate-200 bg-slate-50 p-3">
             <legend className="px-1 text-sm font-medium">Deadline (rule R1: every notice gets one)</legend>
             <DeadlineFields rules={d.rules} compact />
             {d.attorney ? (
@@ -459,7 +470,7 @@ export function NoticesCard({ d }: { d: MatterData }) {
                 <input name="no_deadline_reason" className={inputClass} />
               </Field>
             ) : (
-              <p className="mt-2 text-xs text-zinc-500">
+              <p className="mt-2 text-xs text-slate-500">
                 No deadline on this notice? Leave it empty: the attorney gets a review item due the next business day.
               </p>
             )}
@@ -492,7 +503,7 @@ export function FilingsCard({ d }: { d: MatterData }) {
               <tr key={f.id}>
                 <Td>
                   <strong>{f.form_type}</strong>
-                  {f.cycle_id && <div className="text-xs text-zinc-500">response filing</div>}
+                  {f.cycle_id && <div className="text-xs text-slate-500">response filing</div>}
                 </Td>
                 <Td>{label(FORUMS, f.forum)}</Td>
                 <Td>
@@ -503,7 +514,7 @@ export function FilingsCard({ d }: { d: MatterData }) {
                   {f.filed_at ? (
                     <>
                       {formatDate(f.filed_at)}
-                      <div className="text-zinc-500">
+                      <div className="text-slate-500">
                         {f.filing_method}
                         {f.fee_cents != null && ` · $${(f.fee_cents / 100).toFixed(2)}`}
                         {f.proof_ref && ` · proof ${f.proof_ref}`}
@@ -518,7 +529,7 @@ export function FilingsCard({ d }: { d: MatterData }) {
                   {f.decision && (
                     <>
                       <Badge tone={["approved", "granted"].includes(f.decision) ? "green" : "red"}>{label(DECISIONS, f.decision)}</Badge>
-                      <div className="text-zinc-500">
+                      <div className="text-slate-500">
                         {f.client_informed_at ? `Client told ${formatDate(f.client_informed_at)}` : "Client not told yet"}
                       </div>
                       {f.post_decision && <div>{label(POST_DECISION, f.post_decision)}</div>}
@@ -535,7 +546,7 @@ export function FilingsCard({ d }: { d: MatterData }) {
                         <Button>Mark filed</Button>
                       </Inline>
                     ) : (
-                      <span className="text-xs text-zinc-500">Waiting for attorney approval (stage 6)</span>
+                      <span className="text-xs text-slate-500">Waiting for attorney approval (stage 6)</span>
                     )
                   )}
                   {f.filed_at && !f.ref_no && (
@@ -605,10 +616,10 @@ export function CyclesCard({ d }: { d: MatterData }) {
           const items = d.checklist.filter((i) => i.cycle_id === c.id);
           const deadline = d.deadlines.find((x) => x.cycle_id === c.id);
           return (
-            <div key={c.id} className="rounded border border-zinc-200 p-3 dark:border-zinc-800">
+            <div key={c.id} className="overflow-hidden rounded-lg border border-slate-200 p-4">
               <div className="mb-2 flex flex-wrap items-baseline gap-2">
                 <strong>{label(CYCLE_KINDS, c.kind)}</strong>
-                <span className="text-sm text-zinc-500">on {filing?.form_type}</span>
+                <span className="text-sm text-slate-500">on {filing?.form_type}</span>
                 {c.status === "open" ? <Badge tone="blue">Stage {c.stage}: {stageName(c.stage)}</Badge> : <Badge tone="green">Filed {formatDate(c.filed_at)}</Badge>}
                 {deadline && <span className="text-sm">Due {formatDate(deadline.due_date)}</span>}
               </div>
@@ -623,15 +634,23 @@ export function CyclesCard({ d }: { d: MatterData }) {
                         </p>
                       ) : d.attorney ? (
                         <Inline action={approveGate} values={{ back: d.back, matter_id: d.matter.id, stage: c.stage, cycle_id: c.id }}>
-                          <Button variant="primary">{GATE_LABELS[c.stage]}</Button>
+                          <ConfirmButton
+                            confirm={`${d.matter.code}, ${label(CYCLE_KINDS, c.kind)}: ${GATE_LABELS[c.stage]}?\n\nThis approval is permanent and is logged with your name and the time.`}
+                          >
+                            <Icon name="check" /> {GATE_LABELS[c.stage]}
+                          </ConfirmButton>
                         </Inline>
                       ) : (
                         <Badge tone="amber">Waiting for the attorney</Badge>
                       ))}
                     <Inline action={advanceCycle} values={{ back: d.back, cycle_id: c.id }}>
-                      <Button variant="primary" disabled={!checks.every((x) => x.ok)}>
-                        {c.stage < 6 ? `Move to stage ${c.stage + 1}` : "Record response filed"}
-                      </Button>
+                      <ConfirmButton
+                        variant={checks.every((x) => x.ok) ? "primary" : "secondary"}
+                        disabled={!checks.every((x) => x.ok)}
+                        confirm={c.stage < 6 ? `Move this response to stage ${c.stage + 1}: ${stageName(c.stage + 1)}?` : "Record the response as filed?"}
+                      >
+                        {c.stage < 6 ? `Move to stage ${c.stage + 1}: ${stageName(c.stage + 1)}` : "Record response filed"}
+                      </ConfirmButton>
                     </Inline>
                   </div>
                 </div>
@@ -666,7 +685,7 @@ function ChecklistList({ d, items, cycleId, editable }: { d: MatterData; items: 
                 <Badge tone={["received", "drafted", "approved", "waived"].includes(i.status) ? "green" : "amber"}>
                   {label(CHECKLIST_STATUS, i.status)}
                 </Badge>
-                {i.reviewed_by && <div className="text-xs text-zinc-500">Reviewed by {d.names[i.reviewed_by]}</div>}
+                {i.reviewed_by && <div className="text-xs text-slate-500">Reviewed by {d.names[i.reviewed_by]}</div>}
               </Td>
               <Td>
                 <Inline action={setChecklistStatus} values={{ back: d.back, item_id: i.id }}>
@@ -726,7 +745,7 @@ export function PartiesCard({ d }: { d: MatterData }) {
           {d.parties.map((p) => (
             <tr key={p.id}>
               <Td>
-                {p.label} {!p.is_client && <span className="text-xs text-zinc-500">(not a client)</span>}
+                {p.label} {!p.is_client && <span className="text-xs text-slate-500">(not a client)</span>}
               </Td>
               <Td>{label(PARTY_ROLES, p.party_role)}</Td>
               <Td>{p.conflict_cleared ? <Badge tone="green">Cleared</Badge> : <Badge tone="amber">Not cleared</Badge>}</Td>
@@ -771,17 +790,21 @@ export function AppearancesCard({ d }: { d: MatterData }) {
               <Td>{party(a.party_id)}</Td>
               <Td>
                 <Badge tone={a.status === "open" ? "blue" : "gray"}>{a.status}</Badge>
-                {a.successor && <div className="text-xs text-zinc-500">to {a.successor.code}</div>}
+                {a.successor && <div className="text-xs text-slate-500">to {a.successor.code}</div>}
               </Td>
               <Td>
                 {a.status === "open" && (
                   <div className="flex flex-col gap-1">
                     <Inline action={updateAppearance} values={{ back: d.back, appearance_id: a.id, status: "transferred" }}>
                       <input name="target_code" required placeholder="Successor matter code" className={`${inputClass} w-40`} />
-                      <Button>Transfer</Button>
+                      <ConfirmButton variant="secondary" confirm="Transfer this appearance to the successor matter? This is logged.">
+                        Transfer
+                      </ConfirmButton>
                     </Inline>
                     <Inline action={updateAppearance} values={{ back: d.back, appearance_id: a.id, status: "closed" }}>
-                      <Button>Close</Button>
+                      <ConfirmButton variant="secondary" confirm="Close this appearance? This is logged.">
+                        Close
+                      </ConfirmButton>
                     </Inline>
                   </div>
                 )}
@@ -809,7 +832,7 @@ export function AppearancesCard({ d }: { d: MatterData }) {
           <input type="date" name="filed_on" className={inputClass} />
           <Button>Add</Button>
         </form>
-        <p className="mt-1 text-xs text-zinc-500">
+        <p className="mt-1 text-xs text-slate-500">
           {Object.entries(FORM_FOR_FORUM)
             .filter(([f], i, all) => all.findIndex(([, x]) => x === FORM_FOR_FORUM[f]) === i)
             .map(([f, form]) => `${label(APPEARANCE_FORMS, form)}: ${label(FORUMS, f)}`)
@@ -831,10 +854,10 @@ export function TasksCard({ d }: { d: MatterData }) {
       {d.tasks.length === 0 ? (
         <Empty>No open tasks.</Empty>
       ) : (
-        <ul className="divide-y divide-zinc-100 text-sm dark:divide-zinc-900">
+        <ul className="-my-2 divide-y divide-slate-100 text-sm">
           {d.tasks.map((t) => (
-            <li key={t.id} className="flex items-center gap-2 py-1.5">
-              <span className="w-24 shrink-0 text-zinc-500">{t.due_date ? formatDate(t.due_date) : ""}</span>
+            <li key={t.id} className="flex items-center gap-3 py-2.5">
+              <span className="w-20 shrink-0 text-xs text-slate-500">{t.due_date ? formatDate(t.due_date) : ""}</span>
               <span className="flex-1">
                 {t.title} <Badge>{ROLE_LABELS[t.owner_role]}</Badge>
               </span>
@@ -849,33 +872,23 @@ export function TasksCard({ d }: { d: MatterData }) {
   );
 }
 
-function summarize(payload: Row): string {
-  if (!payload || typeof payload !== "object") return "";
-  const p = payload.changed ?? payload;
-  return Object.entries(p)
-    .filter(([k, v]) => v !== null && !["id", "matter_id", "created_by", "logged_by"].includes(k) && !k.endsWith("_id"))
-    .slice(0, 6)
-    .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : String(v)}`)
-    .join(", ");
-}
-
 export function HistoryCard({ d }: { d: MatterData }) {
   return (
-    <Card title={`History (${d.events.length} events, append-only)`}>
-      <div className="max-h-96 overflow-y-auto">
-        <Table head={["When", "Who", "What", "Details"]}>
-          {d.events.map((e) => (
-            <tr key={e.id}>
-              <Td className="whitespace-nowrap text-xs">{formatDateTime(e.occurred_at)}</Td>
-              <Td className="whitespace-nowrap text-xs">
-                {e.actor_id ? `${d.names[e.actor_id] ?? "?"} (${ROLE_LABELS[e.actor_role] ?? ""})` : "System"}
-              </Td>
-              <Td className="whitespace-nowrap font-mono text-xs">{e.event_type}</Td>
-              <Td className="text-xs text-zinc-500">{summarize(e.payload)}</Td>
-            </tr>
-          ))}
-        </Table>
-      </div>
+    <Card title="History" description={`${d.events.length} events, newest first. Nothing here can be edited or deleted.`}>
+      <ol className="relative ml-1 space-y-4 border-l border-slate-200 pl-5">
+        {d.events.map((e) => (
+          <li key={e.id} className="relative">
+            <span className="absolute -left-[25.5px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-navy-400 ring-1 ring-slate-200" aria-hidden />
+            <p className="text-sm text-slate-900">
+              <strong>{e.actor_id ? (d.names[e.actor_id] ?? "Someone") : "System"}</strong>
+              {e.actor_role && <span className="text-slate-500"> ({ROLE_LABELS[e.actor_role] ?? e.actor_role})</span>} {describeEvent(e)}
+            </p>
+            <p className="text-xs text-slate-500">
+              {formatDateTime(e.occurred_at)} · <code className="text-[11px]">{e.event_type}</code>
+            </p>
+          </li>
+        ))}
+      </ol>
     </Card>
   );
 }

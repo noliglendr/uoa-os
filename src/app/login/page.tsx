@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { AuthShell } from "@/components/auth-shell";
+import { buttonClass, inputClass } from "@/components/styles";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -32,32 +34,29 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex flex-1 items-center justify-center p-6">
-      <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4">
-        <h1 className="text-2xl font-semibold">UOA OS</h1>
-        <p className="text-sm text-zinc-500">Sign in with your firm account.</p>
-
+    <AuthShell title="Sign in" subtitle="Use your firm account.">
+      <form onSubmit={onSubmit} className="space-y-4">
         <label className="block space-y-1">
-          <span className="text-sm font-medium">Email</span>
+          <span className="text-sm font-medium text-slate-700">Email</span>
           <input
             type="email"
             autoComplete="username"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+            className={`${inputClass} h-10 w-full`}
           />
         </label>
 
         <label className="block space-y-1">
-          <span className="text-sm font-medium">Password</span>
+          <span className="text-sm font-medium text-slate-700">Password</span>
           <input
             type="password"
             autoComplete="current-password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+            className={`${inputClass} h-10 w-full`}
           />
         </label>
 
@@ -70,11 +69,11 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={pending}
-          className="w-full rounded bg-zinc-900 px-3 py-2 font-medium text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+          className={buttonClass("primary", "h-10 w-full")}
         >
           {pending ? "Signing in…" : "Sign in"}
         </button>
       </form>
-    </main>
+    </AuthShell>
   );
 }

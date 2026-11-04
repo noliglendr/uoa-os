@@ -1,16 +1,16 @@
 "use client";
 
 import { useActionState } from "react";
+import { buttonClass, inputClass as input } from "@/components/styles";
 import { createStaff, type CreateStaffState } from "./actions";
 
-const input = "rounded border border-zinc-300 bg-white px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900";
 
 export function AddStaffForm() {
   const [state, action, pending] = useActionState<CreateStaffState, FormData>(createStaff, null);
 
   if (state?.created) {
     return (
-      <div className="space-y-2 rounded border border-emerald-300 bg-emerald-50 p-3 text-sm dark:border-emerald-800 dark:bg-emerald-950">
+      <div className="space-y-2 rounded border border-emerald-300 bg-emerald-50 p-3 text-sm">
         <p>
           <strong>Account created for {state.created.email}.</strong> Give them this temporary password in person or by
           phone (not by email). It is shown only once.
@@ -49,7 +49,7 @@ export function AddStaffForm() {
       <button
         type="submit"
         disabled={pending}
-        className="rounded bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+        className={buttonClass("primary")}
       >
         {pending ? "Creating…" : "Add staff member"}
       </button>
