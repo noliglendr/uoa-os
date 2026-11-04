@@ -3,6 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 // Pages anyone can open without a session.
 const PUBLIC_PATHS = ["/login"];
+// Called by the scheduler with no session; the route checks its own secret (CRON_SECRET).
+const CRON_PATHS = ["/api/cron"];
 // Pages a signed-in user can open before finishing the second factor (MFA).
 const MFA_PATHS = ["/mfa"];
 
@@ -15,6 +17,10 @@ function startsWithAny(pathname: string, paths: string[]) {
 // This is an optimistic check only. Real access control is row-level security
 // in the database.
 export async function updateSession(request: NextRequest) {
+  if (startsWithAny(request.nextUrl.pathname, CRON_PATHS)) {
+    return NextResponse.next({ request });
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(

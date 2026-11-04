@@ -52,7 +52,7 @@ set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-00000000000a", 
 do $$ begin
   assert public.current_app_role() = 'principal', 'principal role expected';
   assert (select count(*) from public.profiles) = 3, 'principal sees all staff';
-  assert (select count(*) from public.settings) = 8, 'principal sees all settings';
+  assert (select count(*) from public.settings) = 10, 'principal sees all settings';
 end $$;
 
 update public.settings set value = '10' where key = 'retention.years_after_close';
@@ -115,7 +115,7 @@ set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-00000000000b", 
 
 do $$ begin
   assert public.current_app_role() = 'paralegal', 'paralegal role expected';
-  assert (select count(*) from public.settings) = 8, 'paralegal can read settings';
+  assert (select count(*) from public.settings) = 10, 'paralegal can read settings';
 end $$;
 
 update public.settings set value = 'true' where key = 'client_auto_updates';

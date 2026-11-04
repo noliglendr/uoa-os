@@ -16,8 +16,8 @@ Read this file first. It holds everything decided so far. The source documents a
 |---|---|
 | Gate 0: Resilience baseline (monitoring, SSL, runbook) | Approved |
 | Gate 1: Process map | Client wrote the 11-stage **Matter Lifecycle Framework** (`docs/matter-lifecycle-framework.pdf`). Noli sent a redline (`docs/gate1-redline.md`). Client: "structural issues and proposed changes are useful." |
-| Gate 2: Proposal | `docs/gate2-proposal.md` sent. Waiting for decisions D1–D6 (due Nov 3). **No feature code until the client approves.** |
-| Gate 3: Build | Increment 1 = Matter Tracker with Deadline Control (below) |
+| Gate 2: Proposal | **Approved Nov 3 by delegation**: Frank asked Noli to finalize without more referrals and review the final work. D1–D6 decided on the recommendations (decision log #6–#12). |
+| Gate 3: Build | Increment 1 (Matter Tracker with Deadline Control) built Nov 3–4; Frank's review of the finished work due **Fri Nov 6** (decision #13). Review guide: `docs/increment1-review.md`. |
 
 ## 3. Non-negotiable rules
 
@@ -156,16 +156,9 @@ Build only after the client approves Gate 2.
 
 ## 13. Open client decisions
 
-**Due Nov 3:**
+D1–D6: decided Nov 3 (decision log #6–#12). Frank prefers no more referrals: decide on the recommendation, log it, and list it in his final review.
 
-- D1: first build is the Matter Tracker with Deadline Control.
-- D2: custom app plus bought tools.
-- D3: accept the redline.
-- D4: users and roles (who does docketing).
-- D5: up to $150/month on tools.
-- D6: confirm EOIR-27 for the BIA.
-
-**Due before live use (Nov 25):**
+**Due before live use (Nov 25). D7 and D9 need Frank himself (legal judgment and real client data):**
 
 - D7: deadline rules verified.
 - D8: retention period.
