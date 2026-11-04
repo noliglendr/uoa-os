@@ -14,7 +14,7 @@ import { buildSweep, type SweepData } from "./items";
 export default function SweepPage({ searchParams }: PageProps<"/sweep">) {
   return (
     <>
-      <PageHeader
+      <PageHeader eyebrow="Work · Every week" icon="refresh"
         title="Weekly status sweep"
         description="Once a week, check each case online (USCIS case status, EOIR case information, court docket) and record the result. If something changed, log it as a notice on the matter so it gets a deadline."
       />
@@ -47,8 +47,8 @@ async function Sweep() {
             const l = last.get(i.entityId);
             return (
               <tr key={i.key}>
-                <Td>
-                  <Link href={`/matters/${i.matterId}`} className="font-medium hover:underline">
+                <Td className="whitespace-nowrap">
+                  <Link href={`/matters/${i.matterId}`} className="font-semibold text-navy-800 hover:underline">
                     {i.code}
                   </Link>
                 </Td>
@@ -57,7 +57,7 @@ async function Sweep() {
                 <Td>
                   {i.stage}. {stageName(i.stage)}
                 </Td>
-                <Td className="text-xs">
+                <Td className="min-w-40 text-xs">
                   {l ? (
                     <>
                       {formatDate(l.at)} · {names[l.actor] ?? "?"}
@@ -71,15 +71,15 @@ async function Sweep() {
                   )}
                   {dueKeys.has(i.key) && <div><Badge tone="amber">Due</Badge></div>}
                 </Td>
-                <Td>
-                  <form action={recordSweepCheck} className="flex flex-wrap items-center gap-1">
+                <Td className="whitespace-nowrap">
+                  <form action={recordSweepCheck} className="flex items-center gap-2">
                     <Hidden values={{ back: "/sweep", entity_type: i.entityType, entity_id: i.entityId, matter_id: i.matterId }} />
-                    <select name="result" className={inputClass}>
+                    <select name="result" aria-label="Result" className={`${inputClass} w-36`}>
                       <option value="no_change">No change</option>
                       <option value="changed">Change found</option>
                     </select>
-                    <input name="note" placeholder="Note (no client facts)" className={`${inputClass} w-40`} />
-                    <Button>Record</Button>
+                    <input name="note" aria-label="Note" placeholder="Note (no client facts)" className={`${inputClass} w-48`} />
+                    <Button variant="primary">Record</Button>
                   </form>
                 </Td>
               </tr>

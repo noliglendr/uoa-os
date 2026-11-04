@@ -33,6 +33,7 @@ export const ROLE_LABELS: Record<string, string> = {
   paralegal: "Paralegal",
   docketing: "Docketing",
   intake: "Intake",
+  administrator: "Administrator",
 };
 
 export const MATTER_TYPES: Record<string, string> = {

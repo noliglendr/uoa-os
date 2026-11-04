@@ -6,23 +6,27 @@ import { useState, type ReactNode } from "react";
 import { Icon, type IconName } from "./icons";
 import { LinkPending } from "./link-pending";
 
-const SECTIONS: { title: string; items: { href: string; label: string; icon: IconName }[] }[] = [
+// Who sees each item (decision #17). No list = everyone.
+const MANAGERS = ["principal", "administrator"];
+const EXPORTERS = ["principal", "attorney"];
+
+const SECTIONS: { title: string; items: { href: string; label: string; icon: IconName; roles?: string[] }[] }[] = [
   {
     title: "Work",
     items: [
       { href: "/", label: "My work", icon: "home" },
       { href: "/matters", label: "Matters", icon: "briefcase" },
       { href: "/matters/new", label: "New matter", icon: "plus" },
-      { href: "/sweep", label: "Weekly sweep", icon: "refresh" },
+      { href: "/sweep", label: "Weekly sweep", icon: "refresh", roles: ["principal", "attorney", "administrator", "paralegal", "docketing"] },
     ],
   },
   {
     title: "Firm",
     items: [
       { href: "/rules", label: "Deadline rules", icon: "scale" },
-      { href: "/staff", label: "Staff", icon: "users" },
-      { href: "/settings", label: "Settings", icon: "cog" },
-      { href: "/export", label: "Export", icon: "download" },
+      { href: "/staff", label: "Staff", icon: "users", roles: MANAGERS },
+      { href: "/settings", label: "Settings", icon: "cog", roles: MANAGERS },
+      { href: "/export", label: "Export", icon: "download", roles: EXPORTERS },
     ],
   },
 ];
@@ -33,15 +37,15 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function SidebarNav() {
-  return <NavList pathname={usePathname()} />;
+export function SidebarNav({ role }: { role?: string }) {
+  return <NavList pathname={usePathname()} role={role} />;
 }
 
-/** The menu itself. Also the loading fallback (no item highlighted). */
-export function NavList({ pathname }: { pathname: string }) {
+/** The menu itself. Also the loading fallback (no item highlighted, role-limited items hidden). */
+export function NavList({ pathname, role }: { pathname: string; role?: string }) {
   return (
     <nav className="space-y-6">
-      {SECTIONS.map((s) => (
+      {SECTIONS.map((s) => ({ ...s, items: s.items.filter((i) => !i.roles || (role && i.roles.includes(role))) })).map((s) => (
         <div key={s.title}>
           <div className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-navy-300">{s.title}</div>
           <ul className="space-y-0.5">
@@ -91,7 +95,7 @@ export function MobileMenu({ children }: { children: ReactNode }) {
           onClick={(event) => {
             if ((event.target as HTMLElement).closest("a")) setOpen(false);
           }}
-          className="absolute inset-x-0 top-full z-40 border-t border-white/10 bg-navy-900 px-3 py-4 shadow-lg"
+          className="drop-in absolute inset-x-0 top-full z-40 border-t border-white/10 bg-navy-900 px-3 py-4 shadow-lg"
         >
           {children}
         </div>

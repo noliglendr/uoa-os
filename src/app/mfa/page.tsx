@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { NETWORK_MESSAGE, createClient, withTimeout } from "@/lib/supabase/client";
 import { AuthShell } from "@/components/auth-shell";
 import { buttonClass, inputClass } from "@/components/styles";
 
@@ -15,7 +14,6 @@ type State =
 // Second login step. First visit: set up an authenticator app (scan a QR code).
 // Later visits: enter the 6-digit code from the app.
 export default function MfaPage() {
-  const router = useRouter();
   const [state, setState] = useState<State>({ step: "loading" });
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -29,8 +27,8 @@ export default function MfaPage() {
 
     (async () => {
       const supabase = createClient();
-      const { data, error } = await supabase.auth.mfa.listFactors();
-      if (error) {
+      const { data, error } = await withTimeout(supabase.auth.mfa.listFactors()).catch(() => ({ data: null, error: new Error(NETWORK_MESSAGE) }));
+      if (error || !data) {
         setState({ step: "failed", message: "Could not load your sign-in settings. Please sign in again." });
         return;
       }
@@ -48,10 +46,9 @@ export default function MfaPage() {
         }
       }
 
-      const enrolled = await supabase.auth.mfa.enroll({
-        factorType: "totp",
-        friendlyName: "Authenticator app",
-      });
+      const enrolled = await withTimeout(supabase.auth.mfa.enroll({ factorType: "totp", friendlyName: "Authenticator app" })).catch(
+        () => ({ data: null, error: new Error(NETWORK_MESSAGE) }) as const,
+      );
       if (enrolled.error) {
         setState({ step: "failed", message: "Could not start authenticator setup. Please try again." });
         return;
@@ -74,10 +71,14 @@ export default function MfaPage() {
     setError(null);
 
     const supabase = createClient();
-    const { error } = await supabase.auth.mfa.challengeAndVerify({
-      factorId: state.factorId,
-      code: code.trim(),
-    });
+    let error: unknown = null;
+    try {
+      ({ error } = await withTimeout(supabase.auth.mfa.challengeAndVerify({ factorId: state.factorId, code: code.trim() })));
+    } catch {
+      setError(NETWORK_MESSAGE);
+      setPending(false);
+      return;
+    }
 
     if (error) {
       setError("That code did not work. Check the app and try the newest code.");
@@ -85,14 +86,12 @@ export default function MfaPage() {
       return;
     }
 
-    router.replace("/");
-    router.refresh();
+    window.location.replace("/");
   }
 
   async function signOut() {
-    await createClient().auth.signOut();
-    router.replace("/login");
-    router.refresh();
+    await withTimeout(createClient().auth.signOut(), 10_000).catch(() => undefined);
+    window.location.replace("/login");
   }
 
   return (

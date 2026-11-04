@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
-import { Badge, ErrorBanner } from "@/components/ui";
+import { ErrorBanner, HeroChip } from "@/components/ui";
 import { MatterSkeleton } from "@/components/skeleton";
 import { LinkPending } from "@/components/link-pending";
 import { Icon } from "@/components/icons";
@@ -70,6 +70,7 @@ async function Matter({
   const data: MatterData = {
     matter,
     attorney: isAttorney(staff),
+    canWork: staff?.role !== "intake",
     checks: page.checks,
     closure: page.closure,
     gates: page.gates,
@@ -103,21 +104,34 @@ async function Matter({
 
   return (
     <>
-      <header className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{matter.code}</h1>
-              <Badge tone={matter.status === "active" ? "green" : matter.status === "prospect" ? "blue" : "gray"}>{label(MATTER_STATUS, matter.status)}</Badge>
-              {matter.urgent && <Badge tone="red">Urgent</Badge>}
-              {matter.hard_deadline && <Badge tone="gold">Hard deadline</Badge>}
-              {matter.legal_hold && <Badge tone="red">Legal hold</Badge>}
+      <header className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-navy-900/5">
+        <div className="hero relative isolate px-6 pb-6 pt-7 text-white sm:px-8">
+          <div className="hero-grid absolute inset-0 -z-10" aria-hidden />
+          <div className="absolute -right-16 -top-24 -z-10 h-64 w-64 rounded-full bg-gold-400/25 blur-3xl" aria-hidden />
+          <span className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-gold-400 via-gold-300 to-transparent" aria-hidden />
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex min-w-0 items-start gap-4">
+              <span className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/10 text-gold-300 ring-1 ring-inset ring-white/15 sm:flex">
+                <Icon name="briefcase" className="h-6 w-6" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gold-300">{label(MATTER_TYPES, matter.matter_type)}</p>
+                <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">{matter.code}</h1>
+                <p className="mt-1.5 text-sm text-navy-100">{matter.summary}</p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <HeroChip icon="check">{label(MATTER_STATUS, matter.status)}</HeroChip>
+                  {matter.urgent && <HeroChip icon="alert">Urgent</HeroChip>}
+                  {matter.hard_deadline && <HeroChip icon="clock">Hard deadline</HeroChip>}
+                  {matter.legal_hold && <HeroChip icon="shield">Legal hold</HeroChip>}
+                  <HeroChip icon="user">{data.names[matter.attorney_id] ?? "No attorney"}</HeroChip>
+                </div>
+              </div>
             </div>
-            <p className="mt-1 text-slate-600">{matter.summary}</p>
           </div>
-          <Badge>{label(MATTER_TYPES, matter.matter_type)}</Badge>
         </div>
-        <StageBar stage={matter.stage} closed={matter.status === "closed"} />
+        <div className="px-6 pb-5 sm:px-8">
+          <StageBar stage={matter.stage} closed={matter.status === "closed"} />
+        </div>
       </header>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
@@ -149,6 +163,7 @@ async function Matter({
             </ul>
           </nav>
 
+          <div key={tab} className="fade-in space-y-5">
           {tab === "overview" && (
             <>
               <NextStepCard d={data} />
@@ -182,6 +197,7 @@ async function Matter({
             </>
           )}
           {tab === "history" && <HistoryCard d={data} />}
+          </div>
         </div>
 
         <aside className="order-first space-y-5 lg:order-none">

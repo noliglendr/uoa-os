@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { Badge, Button, Card, Empty, Hidden, PageHeader, Stat, type Tone } from "@/components/ui";
+import { Badge, Button, Card, Empty, HeroChip, Hidden, PageHeader, Stat, type Tone } from "@/components/ui";
 import { DashboardSkeleton } from "@/components/skeleton";
 import { LinkPending } from "@/components/link-pending";
 import { ConfirmButton } from "@/components/confirm-button";
+import { Greeting } from "@/components/greeting";
 import { Icon } from "@/components/icons";
 import { buttonClass } from "@/components/styles";
 import { requireStaff, isAttorney } from "@/lib/session";
@@ -45,7 +46,11 @@ const TONE_ORDER = { red: 0, amber: 1, blue: 2 } as const;
 async function DashboardContent() {
   // One database call for the whole screen, alongside the sign-in check.
   const supabase = await createClient();
-  const [{ staff }, { data, error }] = await Promise.all([requireStaff(), supabase.rpc("dashboard_data")]);
+  const [{ staff }, { data, error }, { data: staffList }] = await Promise.all([
+    requireStaff(),
+    supabase.rpc("dashboard_data"),
+    supabase.rpc("staff_page"),
+  ]);
   if (!staff) {
     return (
       <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
@@ -112,23 +117,71 @@ async function DashboardContent() {
 
   const longDate = new Date(`${now}T12:00:00`).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
   const firstName = staff.displayName.split(/\s+/)[0];
+  const nextDeadline = openDeadlines.find((x) => x.kind !== "review");
 
-  return (
-    <>
-      <PageHeader title={`Welcome, ${firstName}`} description={longDate} />
+  // Each role opens on its own work (decision #17).
+  const view: "attorney" | "admin" | "staff" | "intake" = attorney
+    ? "attorney"
+    : staff.role === "administrator"
+      ? "admin"
+      : staff.role === "intake"
+        ? "intake"
+        : "staff";
+  const evidence = data.evidence_open as Row[];
+  const atIntake = open.filter((m) => m.stage === 1);
+  const team = (staffList ?? []) as Row[];
+  const noTwoStep = team.filter((p) => p.active && p.mfa === false);
+  const switchedOff = team.filter((p) => !p.active);
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label={attorney ? "Needs you" : "With the attorney"} value={work.length} tone={work.length ? "amber" : "green"} hint="Approvals and reviews" />
+  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+  const summary =
+    view === "attorney"
+      ? work.length === 0
+        ? "Everything is up to date. Nothing is waiting for your approval."
+        : `${plural(work.length, "item is", "items are")} waiting for your approval${nextDeadline ? `, and the next deadline is ${describeDue(nextDeadline.due_date, now)}` : ""}.`
+      : view === "admin"
+        ? `${plural(team.filter((p) => p.active).length, "person has", "people have")} access${noTwoStep.length ? `, and ${plural(noTwoStep.length, "has", "have")} not set up two-step sign-in yet` : ", all with two-step sign-in"}.`
+        : view === "intake"
+          ? `${plural(atIntake.length, "matter is", "matters are")} at intake. Check conflicts for each party, then move it to engagement.`
+          : `You have ${plural(myTasks.length, "open task", "open tasks")}, ${plural(sweep.due.length, "sweep check", "sweep checks")} due this week and ${plural(evidence.length, "evidence item", "evidence items")} to collect.`;
+
+  const tiles =
+    view === "attorney" ? (
+      <>
+        <Stat label="Needs you" value={work.length} tone={work.length ? "amber" : "green"} hint="Approvals and reviews" />
         <Stat label="Due in 7 days" value={dueThisWeek} tone={dueThisWeek ? "red" : "green"} hint="Open deadlines" />
         <Stat label="Open matters" value={open.length} hint={`${all.length} in total`} />
         <Stat label="Stalled" value={stalled.length} tone={stalled.length ? "red" : "green"} hint={`No activity for ${stalledDays}+ days`} />
-      </div>
+      </>
+    ) : view === "admin" ? (
+      <>
+        <Stat label="Active staff" value={team.filter((p) => p.active).length} hint={`${switchedOff.length} switched off`} />
+        <Stat label="No two-step yet" value={noTwoStep.length} tone={noTwoStep.length ? "red" : "green"} hint="Must set up the app" />
+        <Stat label="With the attorney" value={work.length} tone={work.length ? "amber" : "green"} hint="Approvals waiting" />
+        <Stat label="Stalled" value={stalled.length} tone={stalled.length ? "red" : "green"} hint={`No activity for ${stalledDays}+ days`} />
+      </>
+    ) : view === "intake" ? (
+      <>
+        <Stat label="At intake" value={atIntake.length} tone={atIntake.length ? "amber" : "green"} hint="Stage 1" />
+        <Stat label="My tasks" value={myTasks.length} tone={myTasks.length ? "amber" : "green"} hint="Open" />
+        <Stat label="Open matters" value={open.length} hint={`${all.length} in total`} />
+        <Stat label="Due in 7 days" value={dueThisWeek} tone={dueThisWeek ? "red" : "green"} hint="Open deadlines" />
+      </>
+    ) : (
+      <>
+        <Stat label="My tasks" value={myTasks.length} tone={myTasks.length ? "amber" : "green"} hint="Open" />
+        <Stat label="Sweep due" value={sweep.due.length} tone={sweep.due.length ? "amber" : "green"} hint="Checks this week" />
+        <Stat label="Evidence to collect" value={evidence.length} tone={evidence.length ? "amber" : "green"} hint="Needed or requested" />
+        <Stat label="Due in 7 days" value={dueThisWeek} tone={dueThisWeek ? "red" : "green"} hint="Open deadlines" />
+      </>
+    );
 
-      <div className="grid gap-5 lg:grid-cols-3">
-        <div className="space-y-5 lg:col-span-2">
+  const approvalsCard = (
+    <>
+          <div id="approvals" className="-mb-5 scroll-mt-24" />
           <Card
             title={attorney ? "Needs your approval" : "Waiting for the attorney"}
-            description="Most urgent first. Every approval is permanent and logged with your name."
+            description={attorney ? "Most urgent first. Every approval is permanent and logged with your name." : "Most urgent first. Only the attorney approves these; you can open each matter to follow it."}
             flush
           >
             {work.length === 0 ? (
@@ -136,12 +189,12 @@ async function DashboardContent() {
                 <Icon name="check" className="h-5 w-5" /> All clear. Nothing is waiting for the attorney.
               </div>
             ) : (
-              <ul className="divide-y divide-slate-100">
+              <ul className="stagger divide-y divide-slate-100">
                 {work.map((w, i) => {
                   const m = byId.get(w.matterId);
                   const href = `/matters/${w.matterId}?tab=${w.tab}`;
                   return (
-                    <li key={i} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
+                    <li key={i} className="flex flex-col gap-3 px-4 py-3 transition-colors hover:bg-slate-50/70 sm:flex-row sm:items-center">
                       <div className="flex min-w-0 flex-1 gap-3">
                         <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${TONE_DOT[w.tone]}`} aria-hidden />
                         <div className="min-w-0">
@@ -185,7 +238,10 @@ async function DashboardContent() {
               </ul>
             )}
           </Card>
+    </>
+  );
 
+  const tasksCard = (
           <Card title={`My tasks · ${ROLE_LABELS[staff.role]}`} flush>
             {myTasks.length === 0 ? (
               <div className="p-4">
@@ -208,6 +264,162 @@ async function DashboardContent() {
               </ul>
             )}
           </Card>
+  );
+
+  const evidenceCard = (
+    <Card title="Evidence to collect" description="Checklist items still needed or requested, oldest first." flush>
+      {evidence.length === 0 ? (
+        <div className="flex items-center gap-2 p-4 text-sm text-emerald-700">
+          <Icon name="check" className="h-5 w-5" /> Nothing outstanding.
+        </div>
+      ) : (
+        <ul className="stagger divide-y divide-slate-100">
+          {evidence.slice(0, 8).map((e, i) => (
+            <li key={i}>
+              <Link href={`/matters/${e.matter_id}?tab=evidence`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50">
+                <strong className="w-20 shrink-0 text-sm text-navy-800">{byId.get(e.matter_id)?.code}</strong>
+                <span className="min-w-0 flex-1 truncate text-sm text-slate-900">{e.label}</span>
+                <Badge tone={e.status === "requested" ? "blue" : "amber"}>{e.status === "requested" ? "Requested" : "Needed"}</Badge>
+                <span className="hidden w-20 text-right text-xs text-slate-500 sm:block">{e.owner === "third_party" ? "Third party" : e.owner === "firm" ? "Firm" : "Client"}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+
+  const sweepDueCard = (
+    <Card title="Sweep checks due this week" actions={<Link href="/sweep" className="text-xs font-medium text-navy-700 hover:underline">Open sweep →</Link>} flush>
+      {sweep.due.length === 0 ? (
+        <div className="flex items-center gap-2 p-4 text-sm text-emerald-700">
+          <Icon name="check" className="h-5 w-5" /> Every pending case was checked this week.
+        </div>
+      ) : (
+        <ul className="divide-y divide-slate-100">
+          {sweep.due.slice(0, 6).map((i) => (
+            <li key={i.key} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+              <strong className="w-20 shrink-0 text-navy-800">{i.code}</strong>
+              <span className="min-w-0 flex-1 truncate text-slate-900">{i.what}</span>
+              <span className="text-xs text-slate-500">{i.where}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+
+  const intakeCard = (
+    <Card title="Matters at intake" description="Stage 1: check conflicts for every party, then move the matter to engagement." flush>
+      {atIntake.length === 0 ? (
+        <div className="p-4">
+          <Empty>No matters at intake. Open one with “New matter”.</Empty>
+        </div>
+      ) : (
+        <ul className="stagger divide-y divide-slate-100">
+          {atIntake.map((m) => (
+            <li key={m.id}>
+              <Link href={`/matters/${m.id}?tab=parties`} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50">
+                <strong className="w-20 shrink-0 text-sm text-navy-800">{m.code}</strong>
+                <span className="min-w-0 flex-1 truncate text-sm text-slate-900">{m.summary}</span>
+                {m.urgent && <Badge tone="red">Urgent</Badge>}
+                <span className={buttonClass("secondary")}>Conflicts →</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+
+  const systemCard = (
+    <Card title="Staff and sign-in" description="Everyone must set up two-step sign-in before using real data." actions={<Link href="/staff" className="text-xs font-medium text-navy-700 hover:underline">Staff page →</Link>} flush>
+      <ul className="divide-y divide-slate-100">
+        {team.map((p) => (
+          <li key={p.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+            <span className="min-w-0 flex-1 truncate font-medium text-slate-900">{p.display_name}</span>
+            <span className="w-28 text-xs text-slate-500">{ROLE_LABELS[p.role] ?? p.role}</span>
+            {!p.active ? <Badge tone="gray">Switched off</Badge> : p.mfa ? <Badge tone="green">Two-step on</Badge> : <Badge tone="red">No two-step</Badge>}
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+
+  const leftColumn =
+    view === "attorney" ? (
+      <>
+        {approvalsCard}
+        {tasksCard}
+      </>
+    ) : view === "admin" ? (
+      <>
+        {systemCard}
+        {approvalsCard}
+      </>
+    ) : view === "intake" ? (
+      <>
+        {intakeCard}
+        {tasksCard}
+      </>
+    ) : (
+      <>
+        {tasksCard}
+        {evidenceCard}
+        {sweepDueCard}
+        {approvalsCard}
+      </>
+    );
+
+  return (
+    <>
+      <PageHeader
+        eyebrow={`My work · ${ROLE_LABELS[staff.role]} · ${longDate}`}
+        title={<Greeting name={firstName} />}
+        description={summary}
+        meta={
+          <>
+            <HeroChip icon="briefcase">{open.length} open matters</HeroChip>
+            <HeroChip icon="clock">{upcoming.length} deadlines in 30 days</HeroChip>
+            {view !== "intake" && (
+              <HeroChip icon="refresh">
+                Sweep {sweep.items.length - sweep.due.length}/{sweep.items.length} done
+              </HeroChip>
+            )}
+          </>
+        }
+        actions={
+          <>
+            {view === "attorney" && work.length > 0 && (
+              <a href="#approvals" className={buttonClass("gold", "h-9")}>
+                <Icon name="check" /> Review approvals
+              </a>
+            )}
+            {view === "staff" && sweep.due.length > 0 && (
+              <Link href="/sweep" className={buttonClass("gold", "h-9")}>
+                <Icon name="refresh" /> Do this week&apos;s sweep
+              </Link>
+            )}
+            {view === "admin" && (
+              <Link href="/staff" className={buttonClass("gold", "h-9")}>
+                <Icon name="users" /> Manage staff
+              </Link>
+            )}
+            <Link href="/matters/new" className={buttonClass("light", "h-9")}>
+              <Icon name="plus" /> New matter
+            </Link>
+          </>
+        }
+        overlap
+      />
+
+      <div className="stagger relative z-10 -mt-[4.5rem] grid grid-cols-2 gap-3 px-3 sm:px-5 lg:grid-cols-4">
+        {tiles}
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-3">
+        <div className="space-y-5 lg:col-span-2">
+          {leftColumn}
         </div>
 
         <div className="space-y-5">

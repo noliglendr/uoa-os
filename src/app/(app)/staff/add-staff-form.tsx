@@ -5,7 +5,7 @@ import { buttonClass, inputClass as input } from "@/components/styles";
 import { createStaff, type CreateStaffState } from "./actions";
 
 
-export function AddStaffForm() {
+export function AddStaffForm({ principal }: { principal: boolean }) {
   const [state, action, pending] = useActionState<CreateStaffState, FormData>(createStaff, null);
 
   if (state?.created) {
@@ -39,11 +39,12 @@ export function AddStaffForm() {
       <label className="flex flex-col gap-1 text-sm">
         <span className="font-medium">Role</span>
         <select name="role" className={input} defaultValue="paralegal">
-          <option value="attorney">Attorney</option>
+          {principal && <option value="attorney">Attorney</option>}
           <option value="paralegal">Paralegal</option>
           <option value="docketing">Docketing</option>
           <option value="intake">Intake</option>
-          <option value="principal">Principal</option>
+          <option value="administrator">Administrator</option>
+          {principal && <option value="principal">Principal</option>}
         </select>
       </label>
       <button

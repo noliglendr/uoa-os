@@ -1,4 +1,6 @@
-import { Card, PageHeader } from "@/components/ui";
+import { Suspense } from "react";
+import { Card, Loading, NotForYourRole, PageHeader } from "@/components/ui";
+import { requireStaff } from "@/lib/session";
 import { Icon } from "@/components/icons";
 import { EXPORT_TABLES } from "./tables";
 
@@ -6,10 +8,21 @@ import { EXPORT_TABLES } from "./tables";
 export default function ExportPage() {
   return (
     <>
-      <PageHeader
+      <PageHeader eyebrow="Firm · The firm owns its data" icon="download"
         title="Export"
         description="The firm owns its data. Each file holds the full table and opens in Excel. Downloads are for the attorney and principal, and each one is recorded in the history."
       />
+      <Suspense fallback={<Loading rows={4} />}>
+        <Downloads />
+      </Suspense>
+    </>
+  );
+}
+
+async function Downloads() {
+  const { staff } = await requireStaff();
+  if (staff?.role !== "principal" && staff?.role !== "attorney") return <NotForYourRole who="the attorney and the principal" />;
+  return (
       <Card title="Download as CSV" flush>
         <ul className="grid divide-y divide-slate-100 sm:grid-cols-2 sm:divide-y-0">
           {EXPORT_TABLES.map((t) => (
@@ -27,6 +40,5 @@ export default function ExportPage() {
           ))}
         </ul>
       </Card>
-    </>
   );
 }

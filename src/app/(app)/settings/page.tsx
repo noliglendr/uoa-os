@@ -1,16 +1,16 @@
 import { Suspense } from "react";
-import { Badge, Button, Card, ErrorBanner, Hidden, Loading, PageHeader, inputClass } from "@/components/ui";
-import { requireStaff } from "@/lib/session";
+import { Badge, Button, Card, ErrorBanner, Hidden, Loading, NotForYourRole, PageHeader, inputClass } from "@/components/ui";
+import { canManage, requireStaff } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 
 import { formatDateTime } from "@/lib/labels";
 import { updateSetting } from "../actions";
 
-// Open decisions are settings. Only the principal can change them; every change is logged.
+// Open decisions are settings. The principal or an administrator changes them; every change is logged.
 export default function SettingsPage({ searchParams }: PageProps<"/settings">) {
   return (
     <>
-      <PageHeader title="Settings" description="Firm rules that are open decisions. Only the principal can change them, and every change is logged." />
+      <PageHeader eyebrow="Firm · Open decisions" icon="cog" title="Settings" description="Firm rules that are open decisions. The principal or an administrator can change them, and every change is logged." />
       <Suspense fallback={null}>
         <ErrorBanner searchParams={searchParams} />
       </Suspense>
@@ -64,13 +64,14 @@ async function Settings() {
   const [{ staff }, { data, error }] = await Promise.all([requireStaff(), supabase.rpc("settings_page")]);
   if (error) throw error;
   const names = data.names as Record<string, string>;
-  const principal = staff?.role === "principal";
+  const principal = canManage(staff);
+  if (!principal) return <NotForYourRole who="the principal and administrators" />;
   const rows = data.settings as Setting[];
 
   return (
     <>
       {!principal && (
-        <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">You can see the settings. Only the principal can change them.</p>
+        <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">You can see the settings. Only the principal or an administrator can change them.</p>
       )}
       {GROUPS.map((group) => {
         const items = rows.filter((s) => (UI[s.key]?.group ?? "Other") === group);

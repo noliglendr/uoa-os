@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Icon, type IconName } from "./icons";
 import { inputClass } from "./styles";
 
 export { inputClass };
@@ -7,15 +8,62 @@ export { Button } from "./submit-button";
 
 // Small building blocks shared by every screen. Server components only.
 
-export function PageHeader({ title, description, actions }: { title: ReactNode; description?: ReactNode; actions?: ReactNode }) {
+/**
+ * The navy banner at the top of every page: section label, title, a short
+ * description, optional facts ("meta") and buttons. With `overlap`, it leaves
+ * room for the next block (the dashboard's number tiles) to sit across its edge.
+ */
+export function PageHeader({
+  title,
+  description,
+  eyebrow,
+  icon,
+  actions,
+  meta,
+  overlap,
+}: {
+  title: ReactNode;
+  description?: ReactNode;
+  eyebrow?: string;
+  icon?: IconName;
+  actions?: ReactNode;
+  meta?: ReactNode;
+  overlap?: boolean;
+}) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{title}</h1>
-        {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
+    <header className={`hero relative isolate overflow-hidden rounded-2xl bg-navy-900 px-6 pt-7 text-white shadow-lg shadow-navy-900/10 sm:px-8 ${overlap ? "pb-20" : "pb-7"}`}>
+      <div className="hero-grid absolute inset-0 -z-10" aria-hidden />
+      <div className="absolute -right-16 -top-24 -z-10 h-72 w-72 rounded-full bg-gold-400/25 blur-3xl" aria-hidden />
+      <div className="absolute -bottom-32 left-1/4 -z-10 h-72 w-96 rounded-full bg-navy-500/40 blur-3xl" aria-hidden />
+      <span className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-gold-400 via-gold-300 to-transparent" aria-hidden />
+
+      <div className="flex flex-wrap items-end justify-between gap-5">
+        <div className="flex min-w-0 items-start gap-4">
+          {icon && (
+            <span className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/10 text-gold-300 ring-1 ring-inset ring-white/15 sm:flex">
+              <Icon name={icon} className="h-6 w-6" />
+            </span>
+          )}
+          <div className="min-w-0">
+            {eyebrow && <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gold-300">{eyebrow}</p>}
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
+            {description && <p className="mt-2 max-w-2xl text-sm leading-relaxed text-navy-100">{description}</p>}
+            {meta && <div className="mt-4 flex flex-wrap gap-2">{meta}</div>}
+          </div>
+        </div>
+        {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
       </div>
-      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
-    </div>
+    </header>
+  );
+}
+
+/** A small fact on the page banner, e.g. "4 need you". */
+export function HeroChip({ icon, children }: { icon?: IconName; children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white ring-1 ring-inset ring-white/15 backdrop-blur">
+      {icon && <Icon name={icon} className="h-3.5 w-3.5 text-gold-300" />}
+      {children}
+    </span>
   );
 }
 
@@ -135,11 +183,24 @@ export function Td({ children, className = "" }: { children?: ReactNode; classNa
 export function Stat({ label, value, tone = "gray", hint }: { label: string; value: ReactNode; tone?: "gray" | "amber" | "red" | "green"; hint?: string }) {
   const bar = { gray: "bg-slate-300", amber: "bg-gold-400", red: "bg-red-500", green: "bg-emerald-500" }[tone];
   return (
-    <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+    <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md">
       <span className={`absolute inset-y-0 left-0 w-1 ${bar}`} aria-hidden />
       <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</div>
       <div className="mt-1 text-2xl font-semibold text-slate-900">{value}</div>
       {hint && <div className="text-xs text-slate-500">{hint}</div>}
     </div>
+  );
+}
+
+/** Shown when someone opens a page their role doesn't use (decision #17). */
+export function NotForYourRole({ who }: { who: string }) {
+  return (
+    <section className="flex flex-col items-center rounded-xl border border-slate-200 bg-white px-6 py-12 text-center shadow-sm">
+      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-navy-50 text-navy-700">
+        <Icon name="lock" className="h-6 w-6" />
+      </span>
+      <h2 className="mt-4 text-base font-semibold text-slate-900">This page is for {who}</h2>
+      <p className="mt-1 max-w-sm text-sm text-slate-500">Your role doesn&apos;t use it. If you need access, ask the principal.</p>
+    </section>
   );
 }

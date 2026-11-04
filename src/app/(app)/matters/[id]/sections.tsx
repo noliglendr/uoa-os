@@ -55,6 +55,8 @@ type Check = { item: string; ok: boolean };
 export type MatterData = {
   matter: Row;
   attorney: boolean;
+  /** False for Intake: opens matters and checks conflicts only (decision #17). */
+  canWork: boolean;
   checks: Check[];
   closure: Check[];
   gates: Row[];
@@ -181,11 +183,12 @@ export function NextStepCard({ d }: { d: MatterData }) {
                   <strong>Waiting for the attorney:</strong> {GATE_LABELS[m.stage]}
                 </p>
               ))}
-            {m.stage === 2 && clients > 1 && (
+            {m.stage === 2 && clients > 1 && d.canWork && (
               <Inline action={setMatterFlag} values={{ ...ids, flag: "joint_consent", value: String(!m.joint_consent) }}>
                 <Button>{m.joint_consent ? "Undo joint-representation consent" : "Record joint-representation consent"}</Button>
               </Inline>
             )}
+            {(d.canWork || m.stage === 1) && (
             <Inline action={advanceStage} values={ids}>
               <ConfirmButton
                 variant={allOk ? "primary" : "secondary"}
@@ -195,6 +198,7 @@ export function NextStepCard({ d }: { d: MatterData }) {
                 Move to stage {m.stage + 1}: {stageName(m.stage + 1)} <Icon name="arrowRight" />
               </ConfirmButton>
             </Inline>
+            )}
             {!allOk && <p className="text-xs text-slate-500">Available when every item on the left is done.</p>}
             {m.status === "prospect" && d.attorney && (
               <form action={declineMatter} className="flex flex-wrap gap-2">
@@ -270,7 +274,7 @@ export function DeadlinesCard({ d }: { d: MatterData }) {
                 {x.prep_date && <>Prep by {formatDate(x.prep_date)}. </>}
                 {x.reschedule_requested && <>Reschedule requested. </>}
               </div>
-              {x.status === "open" && (
+              {x.status === "open" && d.canWork && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {d.attorney && !x.attorney_verified && x.kind !== "review" && (
                     <Inline action={updateDeadline} values={{ back: d.back, deadline_id: x.id, field: "verify" }}>
@@ -304,15 +308,17 @@ export function DeadlinesCard({ d }: { d: MatterData }) {
           ))}
         </ul>
       )}
-      <AddForm title="Add a deadline">
-        <form action={addDeadline} className="grid gap-2">
-          <Hidden values={ids} />
-          <DeadlineFields rules={d.rules} />
-          <div>
-            <Button variant="primary">Add deadline</Button>
-          </div>
-        </form>
-      </AddForm>
+      {d.canWork && (
+        <AddForm title="Add a deadline">
+          <form action={addDeadline} className="grid gap-2">
+            <Hidden values={ids} />
+            <DeadlineFields rules={d.rules} />
+            <div>
+              <Button variant="primary">Add deadline</Button>
+            </div>
+          </form>
+        </AddForm>
+      )}
     </Card>
   );
 }
@@ -392,7 +398,7 @@ export function NoticesCard({ d }: { d: MatterData }) {
                   )}
                 </Td>
                 <Td>
-                  <div className="flex flex-col gap-1">
+                  <div className={`flex flex-col gap-1 ${d.canWork ? "" : "hidden"}`}>
                     {review && d.attorney && (
                       <form action={recordNoDeadline} className="flex gap-1">
                         <Hidden values={{ back: d.back, notice_id: n.id }} />
@@ -428,58 +434,60 @@ export function NoticesCard({ d }: { d: MatterData }) {
           })}
         </Table>
       )}
-      <AddForm title="Log a notice">
-        <form action={logNotice} className="grid gap-3">
-          <Hidden values={ids} />
-          <div className="grid gap-2 sm:grid-cols-3">
-            <Field label="Type">
-              <select name="notice_type" required className={inputClass}>
-                <Options map={NOTICE_TYPES} />
-              </select>
-            </Field>
-            <Field label="Channel">
-              <select name="channel" className={inputClass}>
-                <Options map={CHANNELS} />
-              </select>
-            </Field>
-            <Field label="Filing">
-              <select name="filing_id" className={inputClass}>
-                <option value="">(none)</option>
-                {d.filings.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {filingName(f.id)}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Notice date">
-              <input type="date" name="notice_date" required className={inputClass} />
-            </Field>
-            <Field label="Received on" hint="Defaults to today">
-              <input type="date" name="received_on" className={inputClass} />
-            </Field>
-            <Field label="Note">
-              <input name="note" className={inputClass} placeholder="No client facts" />
-            </Field>
-          </div>
-          <fieldset className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-            <legend className="px-1 text-sm font-medium">Deadline (rule R1: every notice gets one)</legend>
-            <DeadlineFields rules={d.rules} compact />
-            {d.attorney ? (
-              <Field label='Or: "no deadline" (attorney only)' hint="Leave the rule and date empty and give the reason">
-                <input name="no_deadline_reason" className={inputClass} />
+      {d.canWork && (
+        <AddForm title="Log a notice">
+          <form action={logNotice} className="grid gap-3">
+            <Hidden values={ids} />
+            <div className="grid gap-2 sm:grid-cols-3">
+              <Field label="Type">
+                <select name="notice_type" required className={inputClass}>
+                  <Options map={NOTICE_TYPES} />
+                </select>
               </Field>
-            ) : (
-              <p className="mt-2 text-xs text-slate-500">
-                No deadline on this notice? Leave it empty: the attorney gets a review item due the next business day.
-              </p>
-            )}
-          </fieldset>
-          <div>
-            <Button variant="primary">Log notice</Button>
-          </div>
-        </form>
-      </AddForm>
+              <Field label="Channel">
+                <select name="channel" className={inputClass}>
+                  <Options map={CHANNELS} />
+                </select>
+              </Field>
+              <Field label="Filing">
+                <select name="filing_id" className={inputClass}>
+                  <option value="">(none)</option>
+                  {d.filings.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {filingName(f.id)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Notice date">
+                <input type="date" name="notice_date" required className={inputClass} />
+              </Field>
+              <Field label="Received on" hint="Defaults to today">
+                <input type="date" name="received_on" className={inputClass} />
+              </Field>
+              <Field label="Note">
+                <input name="note" className={inputClass} placeholder="No client facts" />
+              </Field>
+            </div>
+            <fieldset className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <legend className="px-1 text-sm font-medium">Deadline (rule R1: every notice gets one)</legend>
+              <DeadlineFields rules={d.rules} compact />
+              {d.attorney ? (
+                <Field label='Or: "no deadline" (attorney only)' hint="Leave the rule and date empty and give the reason">
+                  <input name="no_deadline_reason" className={inputClass} />
+                </Field>
+              ) : (
+                <p className="mt-2 text-xs text-slate-500">
+                  No deadline on this notice? Leave it empty: the attorney gets a review item due the next business day.
+                </p>
+              )}
+            </fieldset>
+            <div>
+              <Button variant="primary">Log notice</Button>
+            </div>
+          </form>
+        </AddForm>
+      )}
     </Card>
   );
 }
@@ -496,7 +504,7 @@ export function FilingsCard({ d }: { d: MatterData }) {
       {d.filings.length === 0 ? (
         <Empty>No filings yet. Record them at stage 6.</Empty>
       ) : (
-        <Table head={["Form", "Forum", "Stage", "Ref no.", "Filed", "Receipt", "Decision", "Next"]}>
+        <Table head={["Form", "Forum", "Stage", "Ref no.", "Filed", "Receipt", "Decision", ...(d.canWork ? ["Next"] : [])]}>
           {d.filings.map((f) => {
             const v = { back: d.back, filing_id: f.id };
             return (
@@ -536,7 +544,7 @@ export function FilingsCard({ d }: { d: MatterData }) {
                     </>
                   )}
                 </Td>
-                <Td>
+                <Td className={d.canWork ? "" : "hidden"}>
                   {!f.filed_at && !f.cycle_id && (
                     gate6 ? (
                       <Inline action={updateFiling} values={{ ...v, field: "filed" }}>
@@ -582,20 +590,22 @@ export function FilingsCard({ d }: { d: MatterData }) {
           })}
         </Table>
       )}
-      <AddForm title="Add a filing">
-        <form action={addFiling} className="flex flex-wrap items-end gap-2">
-          <Hidden values={ids} />
-          <Field label="Form">
-            <input name="form_type" required placeholder="I-140" className={`${inputClass} w-28`} />
-          </Field>
-          <Field label="Forum">
-            <select name="forum" className={inputClass}>
-              <Options map={FORUMS} />
-            </select>
-          </Field>
-          <Button variant="primary">Add filing</Button>
-        </form>
-      </AddForm>
+      {d.canWork && (
+        <AddForm title="Add a filing">
+          <form action={addFiling} className="flex flex-wrap items-end gap-2">
+            <Hidden values={ids} />
+            <Field label="Form">
+              <input name="form_type" required placeholder="I-140" className={`${inputClass} w-28`} />
+            </Field>
+            <Field label="Forum">
+              <select name="forum" className={inputClass}>
+                <Options map={FORUMS} />
+              </select>
+            </Field>
+            <Button variant="primary">Add filing</Button>
+          </form>
+        </AddForm>
+      )}
     </Card>
   );
 }
@@ -623,7 +633,7 @@ export function CyclesCard({ d }: { d: MatterData }) {
                 {c.status === "open" ? <Badge tone="blue">Stage {c.stage}: {stageName(c.stage)}</Badge> : <Badge tone="green">Filed {formatDate(c.filed_at)}</Badge>}
                 {deadline && <span className="text-sm">Due {formatDate(deadline.due_date)}</span>}
               </div>
-              {c.status === "open" && (
+              {c.status === "open" && d.canWork && (
                 <div className="grid gap-3 md:grid-cols-2">
                   <Checks checks={checks} />
                   <div className="space-y-2">
@@ -655,7 +665,7 @@ export function CyclesCard({ d }: { d: MatterData }) {
                   </div>
                 </div>
               )}
-              <ChecklistList d={d} items={items} cycleId={c.id} editable={c.status === "open" && c.stage === 4} />
+              <ChecklistList d={d} items={items} cycleId={c.id} editable={d.canWork && c.status === "open" && c.stage === 4} />
             </div>
           );
         })}
@@ -687,7 +697,7 @@ function ChecklistList({ d, items, cycleId, editable }: { d: MatterData; items: 
                 </Badge>
                 {i.reviewed_by && <div className="text-xs text-slate-500">Reviewed by {d.names[i.reviewed_by]}</div>}
               </Td>
-              <Td>
+              <Td className={d.canWork ? "" : "hidden"}>
                 <Inline action={setChecklistStatus} values={{ back: d.back, item_id: i.id }}>
                   <select name="status" defaultValue={i.status} className={inputClass}>
                     {Object.entries(CHECKLIST_STATUS)
@@ -726,7 +736,7 @@ export function ChecklistCard({ d }: { d: MatterData }) {
   const items = d.checklist.filter((i) => i.cycle_id === null);
   return (
     <Card title="Evidence checklist">
-      <ChecklistList d={d} items={items} cycleId={null} editable={d.matter.stage <= 4 && d.matter.status !== "closed"} />
+      <ChecklistList d={d} items={items} cycleId={null} editable={d.canWork && d.matter.stage <= 4 && d.matter.status !== "closed"} />
     </Card>
   );
 }
@@ -793,7 +803,7 @@ export function AppearancesCard({ d }: { d: MatterData }) {
                 {a.successor && <div className="text-xs text-slate-500">to {a.successor.code}</div>}
               </Td>
               <Td>
-                {a.status === "open" && (
+                {a.status === "open" && d.canWork && (
                   <div className="flex flex-col gap-1">
                     <Inline action={updateAppearance} values={{ back: d.back, appearance_id: a.id, status: "transferred" }}>
                       <input name="target_code" required placeholder="Successor matter code" className={`${inputClass} w-40`} />
@@ -813,33 +823,35 @@ export function AppearancesCard({ d }: { d: MatterData }) {
           ))}
         </Table>
       )}
-      <AddForm title="Add an appearance">
-        <form action={addAppearance} className="flex flex-wrap items-center gap-2">
-          <Hidden values={{ back: d.back, matter_id: d.matter.id }} />
-          <select name="party_id" required className={inputClass}>
-            {d.parties.filter((p) => p.is_client).map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.label}
-              </option>
-            ))}
-          </select>
-          <select name="forum" className={inputClass}>
-            <Options map={FORUMS} />
-          </select>
-          <select name="form" className={inputClass}>
-            <Options map={APPEARANCE_FORMS} />
-          </select>
-          <input type="date" name="filed_on" className={inputClass} />
-          <Button>Add</Button>
-        </form>
-        <p className="mt-1 text-xs text-slate-500">
-          {Object.entries(FORM_FOR_FORUM)
-            .filter(([f], i, all) => all.findIndex(([, x]) => x === FORM_FOR_FORUM[f]) === i)
-            .map(([f, form]) => `${label(APPEARANCE_FORMS, form)}: ${label(FORUMS, f)}`)
-            .join(" · ")}
-          {" "}(G-28 also covers CBP and ICE)
-        </p>
-      </AddForm>
+      {d.canWork && (
+        <AddForm title="Add an appearance">
+          <form action={addAppearance} className="flex flex-wrap items-center gap-2">
+            <Hidden values={{ back: d.back, matter_id: d.matter.id }} />
+            <select name="party_id" required className={inputClass}>
+              {d.parties.filter((p) => p.is_client).map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+            <select name="forum" className={inputClass}>
+              <Options map={FORUMS} />
+            </select>
+            <select name="form" className={inputClass}>
+              <Options map={APPEARANCE_FORMS} />
+            </select>
+            <input type="date" name="filed_on" className={inputClass} />
+            <Button>Add</Button>
+          </form>
+          <p className="mt-1 text-xs text-slate-500">
+            {Object.entries(FORM_FOR_FORUM)
+              .filter(([f], i, all) => all.findIndex(([, x]) => x === FORM_FOR_FORUM[f]) === i)
+              .map(([f, form]) => `${label(APPEARANCE_FORMS, form)}: ${label(FORUMS, f)}`)
+              .join(" · ")}
+            {" "}(G-28 also covers CBP and ICE)
+          </p>
+        </AddForm>
+      )}
     </Card>
   );
 }
@@ -861,9 +873,11 @@ export function TasksCard({ d }: { d: MatterData }) {
               <span className="flex-1">
                 {t.title} <Badge>{ROLE_LABELS[t.owner_role]}</Badge>
               </span>
-              <Inline action={completeTask} values={{ back: d.back, task_id: t.id }}>
-                <Button>Done</Button>
-              </Inline>
+              {d.canWork && (
+                <Inline action={completeTask} values={{ back: d.back, task_id: t.id }}>
+                  <Button>Done</Button>
+                </Inline>
+              )}
             </li>
           ))}
         </ul>

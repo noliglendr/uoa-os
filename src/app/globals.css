@@ -46,3 +46,153 @@ body {
     opacity: 1;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Motion: short and subtle. Turned off for people who ask for less motion.
+   --------------------------------------------------------------------------- */
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes drop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+
+/* A page's parts rise in one after another. */
+.page-enter > *,
+.stagger > * {
+  animation: page-in 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.page-enter > :nth-child(2),
+.stagger > :nth-child(2) {
+  animation-delay: 50ms;
+}
+.page-enter > :nth-child(3),
+.stagger > :nth-child(3) {
+  animation-delay: 100ms;
+}
+.page-enter > :nth-child(4),
+.stagger > :nth-child(4) {
+  animation-delay: 150ms;
+}
+.page-enter > :nth-child(5),
+.stagger > :nth-child(5) {
+  animation-delay: 200ms;
+}
+.page-enter > :nth-child(n + 6),
+.stagger > :nth-child(n + 6) {
+  animation-delay: 250ms;
+}
+
+/* Tab content, menus and "Add ..." forms. */
+.fade-in {
+  animation: page-in 0.3s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.drop-in {
+  animation: drop-in 0.2s ease-out both;
+}
+details[open] > :not(summary) {
+  animation: drop-in 0.2s ease-out both;
+}
+
+/* Skeleton loaders: a soft light sweeps across. */
+.shimmer {
+  background: linear-gradient(90deg, var(--color-slate-200) 0%, var(--color-slate-100) 50%, var(--color-slate-200) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Page banner: a fine grid that fades out towards the edges. */
+.hero-grid {
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(ellipse at 70% 0%, black 30%, transparent 75%);
+}
+.hero {
+  background-image: linear-gradient(135deg, var(--color-navy-950) 0%, var(--color-navy-900) 45%, var(--color-navy-700) 100%);
+}
+
+/* Sign-in artwork motion. SVG (SMIL) animations ignore the reduce-motion
+   setting, so their parts are swapped for still versions here. */
+.motion-static {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .motion-only {
+    display: none;
+  }
+  .motion-static {
+    display: inline;
+  }
+}
+
+@keyframes dash-flow {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+.flight-path {
+  animation: dash-flow 1.2s linear infinite;
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+.twinkle {
+  animation: twinkle 3.6s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.glow-breathe {
+  animation: breathe 5s ease-in-out infinite;
+}

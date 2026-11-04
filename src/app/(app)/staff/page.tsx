@@ -1,17 +1,19 @@
 import { Suspense } from "react";
-import { Badge, Button, Card, ErrorBanner, Hidden, Loading, PageHeader, Table, Td, inputClass } from "@/components/ui";
-import { ConfirmButton } from "@/components/confirm-button";
-import { requireStaff } from "@/lib/session";
+import { Badge, Button, Card, ErrorBanner, Hidden, Loading, PageHeader, Table, Td, inputClass, NotForYourRole } from "@/components/ui";
+import { LEGAL_ROLES, canManage, requireStaff } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABELS, formatDate } from "@/lib/labels";
 import { updateStaff } from "./actions";
 import { AddStaffForm } from "./add-staff-form";
+import { AccessButton } from "./access-button";
+import { EditStaff } from "./edit-staff";
 
-// Staff and roles (D4). The principal adds people, sets roles and switches access off.
+// Staff and roles (D4). The principal or an administrator adds people, sets roles
+// and switches access off; only the principal handles the Principal and Attorney roles.
 export default function StaffPage({ searchParams }: PageProps<"/staff">) {
   return (
     <>
-      <PageHeader title="Staff" description="Who can sign in, and in which role. Nobody is deleted: switching access off keeps their name on everything they did." />
+      <PageHeader eyebrow="Firm · Roles and access" icon="users" title="Staff" description="Who can sign in, and in which role. Anyone with history stays in the records: switch off their access. Only unused accounts can be removed." />
       <Suspense fallback={null}>
         <ErrorBanner searchParams={searchParams} />
       </Suspense>
@@ -24,10 +26,12 @@ export default function StaffPage({ searchParams }: PageProps<"/staff">) {
 
 async function Staff() {
   // One database call, alongside the sign-in check. Emails, two-step status
-  // and last sign-in come from Supabase Auth, for the principal only.
+  // and last sign-in come from Supabase Auth, for the principal and administrators only.
   const supabase = await createClient();
   const [{ staff }, { data, error }] = await Promise.all([requireStaff(), supabase.rpc("staff_page")]);
   if (error) throw error;
+  const manager = canManage(staff);
+  if (!manager) return <NotForYourRole who="the principal and administrators" />;
   const principal = staff?.role === "principal";
   const profiles = data as {
     id: string;
@@ -43,7 +47,7 @@ async function Staff() {
   return (
     <>
       <Card title="People and roles">
-        <Table head={principal ? ["Name", "Email", "Role", "Two-step sign-in", "Last sign-in", "Access"] : ["Name", "Role"]}>
+        <Table head={manager ? ["Name", "Email", "Role", "Two-step sign-in", "Last sign-in", "Access", ""] : ["Name", "Role"]}>
           {profiles.map((p) => {
             const a = auth.get(p.id);
             const self = p.id === staff?.id;
@@ -52,13 +56,15 @@ async function Staff() {
                 <Td>
                   {p.display_name} {self && <span className="text-xs text-slate-500">(you)</span>}
                 </Td>
-                {principal && <Td className="text-xs">{a?.email}</Td>}
+                {manager && <Td className="text-xs">{a?.email}</Td>}
                 <Td>
-                  {principal && !self ? (
+                  {manager && !self && (principal || !LEGAL_ROLES.includes(p.role)) ? (
                     <form action={updateStaff} className="flex gap-1">
                       <Hidden values={{ profile_id: p.id }} />
                       <select name="role" defaultValue={p.role} className={inputClass}>
-                        {Object.entries(ROLE_LABELS).map(([v, l]) => (
+                        {Object.entries(ROLE_LABELS)
+                          .filter(([v]) => principal || !LEGAL_ROLES.includes(v))
+                          .map(([v, l]) => (
                           <option key={v} value={v}>
                             {l}
                           </option>
@@ -70,22 +76,19 @@ async function Staff() {
                     ROLE_LABELS[p.role]
                   )}
                 </Td>
-                {principal && (
+                {manager && (
                   <>
                     <Td>{a?.mfa ? <Badge tone="green">Set up</Badge> : <Badge tone="amber">Not yet</Badge>}</Td>
                     <Td className="text-xs">{a?.lastSignIn ? formatDate(a.lastSignIn) : "Never"}</Td>
                     <Td>
                       {p.active ? <Badge tone="green">Active</Badge> : <Badge tone="red">Off</Badge>}
-                      {!self && (
-                        <form action={updateStaff} className="mt-1">
-                          <Hidden values={{ profile_id: p.id, active: String(!p.active) }} />
-                          <ConfirmButton
-                            variant={p.active ? "danger" : "secondary"}
-                            confirm={p.active ? `Switch off access for ${p.display_name}? They can no longer sign in.` : `Switch access back on for ${p.display_name}?`}
-                          >
-                            {p.active ? "Switch off access" : "Switch on access"}
-                          </ConfirmButton>
-                        </form>
+                      {!self && (principal || !LEGAL_ROLES.includes(p.role)) && (
+                        <AccessButton id={p.id} name={p.display_name} active={p.active} />
+                      )}
+                    </Td>
+                    <Td>
+                      {!self && (principal || !LEGAL_ROLES.includes(p.role)) && (
+                        <EditStaff id={p.id} name={p.display_name} email={a?.email} role={ROLE_LABELS[p.role] ?? p.role} />
                       )}
                     </Td>
                   </>
@@ -95,12 +98,12 @@ async function Staff() {
           })}
         </Table>
         <p className="mt-3 text-xs text-slate-500">
-          Nobody is deleted: switching access off keeps their name on everything they did. Every change is logged.
+          Switching access off keeps a person&apos;s name on everything they did. Only accounts with no activity can be removed (Edit → Remove). Every change is logged.
         </p>
       </Card>
-      {principal && (
+      {manager && (
         <Card title="Add a staff member">
-          <AddStaffForm />
+          <AddStaffForm principal={principal} />
         </Card>
       )}
     </>

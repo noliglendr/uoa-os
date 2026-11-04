@@ -1,31 +1,80 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { Icon, type IconName } from "./icons";
 import { LinkPending } from "./link-pending";
+import { inputClass } from "./styles";
 
 // Parts of the top and bottom bars that depend on the current page.
 
-const TITLES: [RegExp, string, string][] = [
-  [/^\/$/, "Work", "My work"],
-  [/^\/matters\/new$/, "Work", "New matter"],
-  [/^\/matters\/[^/]+$/, "Matters", "Matter details"],
-  [/^\/matters$/, "Work", "Matters"],
-  [/^\/sweep/, "Work", "Weekly sweep"],
-  [/^\/rules/, "Firm", "Deadline rules"],
-  [/^\/staff/, "Firm", "Staff"],
-  [/^\/settings/, "Firm", "Settings"],
-  [/^\/export/, "Firm", "Export"],
-  [/^\/account/, "You", "Account"],
+const TITLES: [RegExp, string, string, IconName][] = [
+  [/^\/$/, "Work", "My work", "home"],
+  [/^\/matters\/new$/, "Work", "New matter", "plus"],
+  [/^\/matters\/[^/]+$/, "Matters", "Matter details", "briefcase"],
+  [/^\/matters$/, "Work", "Matters", "briefcase"],
+  [/^\/sweep/, "Work", "Weekly sweep", "refresh"],
+  [/^\/rules/, "Firm", "Deadline rules", "scale"],
+  [/^\/staff/, "Firm", "Staff", "users"],
+  [/^\/settings/, "Firm", "Settings", "cog"],
+  [/^\/export/, "Firm", "Export", "download"],
+  [/^\/account/, "You", "Account", "user"],
 ];
+
+/**
+ * Matter search in the top bar. Press Ctrl+K (or /) anywhere to jump to it.
+ * Enter opens the Matters list filtered by the words typed.
+ */
+export function SearchBox() {
+  const input = useRef<HTMLInputElement>(null);
+  const router = useRouter();
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      const typing = (event.target as HTMLElement)?.closest("input, textarea, select, [contenteditable]");
+      if ((event.key === "k" && (event.ctrlKey || event.metaKey)) || (event.key === "/" && !typing)) {
+        event.preventDefault();
+        input.current?.focus();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  return (
+    <form
+      role="search"
+      className="relative"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const q = input.current?.value.trim() ?? "";
+        router.push(q ? `/matters?q=${encodeURIComponent(q)}` : "/matters");
+      }}
+    >
+      <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+      <input
+        ref={input}
+        type="search"
+        placeholder="Search matters…"
+        aria-label="Search matters"
+        className={`${inputClass} h-10 w-64 rounded-lg bg-slate-50 pl-9 pr-14 focus:bg-white xl:w-80`}
+      />
+      <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded border border-slate-200 bg-white px-1.5 py-0.5 font-sans text-[10px] font-medium text-slate-400">
+        Ctrl K
+      </kbd>
+    </form>
+  );
+}
 
 /** "Work › My work" in the top bar. */
 export function Breadcrumb() {
   const pathname = usePathname();
-  const [, section, page] = TITLES.find(([re]) => re.test(pathname)) ?? [null, "", ""];
+  const [, section, page, icon] = TITLES.find(([re]) => re.test(pathname)) ?? [null, "", "", "home" as IconName];
   return (
-    <div className="flex min-w-0 items-center gap-2 text-sm">
+    <div className="flex min-w-0 items-center gap-2.5 text-sm">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-navy-50 text-navy-700 ring-1 ring-inset ring-navy-100">
+        <Icon name={icon} className="h-4 w-4" />
+      </span>
       {section === "Matters" ? (
         <Link href="/matters" className="text-slate-500 hover:text-slate-900">
           Matters

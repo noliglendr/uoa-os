@@ -7,7 +7,7 @@ import { createMatter } from "../../actions";
 export default function NewMatterPage({ searchParams }: PageProps<"/matters/new">) {
   return (
     <>
-      <PageHeader title="New matter" description="Stage 1, intake: the matter type, urgency and each party for the conflict check." />
+      <PageHeader eyebrow="Work · Stage 1 intake" icon="plus" title="New matter" description="Stage 1, intake: the matter type, urgency and each party for the conflict check." />
       <Suspense fallback={null}>
         <ErrorBanner searchParams={searchParams} />
       </Suspense>

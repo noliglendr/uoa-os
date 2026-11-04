@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
+import { fetchWithRetry } from "./fetch";
 
 // Supabase client for Server Components, Server Actions and Route Handlers.
 // Acts as the signed-in user, so row-level security applies.
@@ -14,6 +15,7 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      global: { fetch: fetchWithRetry },
       cookies: {
         getAll() {
           return cookieStore.getAll();

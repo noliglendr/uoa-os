@@ -12,6 +12,8 @@ run -f "$DIR/auth_stub.sql"
 for f in "$DIR"/../migrations/*.sql; do run -f "$f"; done
 run -f "$DIR/foundation.test.sql" | grep PASSED
 run -f "$DIR/matters.test.sql" | grep PASSED
+run -f "$DIR/admin.test.sql" | grep PASSED
+run -f "$DIR/roles.test.sql" | grep PASSED
 run <<SQL
 begin;
 insert into auth.users (id) values ('00000000-0000-0000-0000-00000000000a');

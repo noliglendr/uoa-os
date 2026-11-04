@@ -10,7 +10,7 @@ import { MATTER_STATUS, MATTER_TYPES, formatDate, label, stageName } from "@/lib
 export default function MattersPage({ searchParams }: PageProps<"/matters">) {
   return (
     <>
-      <PageHeader title="Matters" description="Every matter, from intake to closed file." />
+      <PageHeader eyebrow="Work" icon="briefcase" title="Matters" description="Every matter, from intake to closed file." />
       <Suspense fallback={<Loading />}>
         <MatterList searchParams={searchParams} />
       </Suspense>

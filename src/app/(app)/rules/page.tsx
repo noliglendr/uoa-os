@@ -10,7 +10,7 @@ import { updateRuleNote, verifyRule } from "../actions";
 export default function RulesPage({ searchParams }: PageProps<"/rules">) {
   return (
     <>
-      <PageHeader
+      <PageHeader eyebrow="Firm · Decision D7" icon="scale"
         title="Deadline rules"
         description="The system computes deadlines from these rules. Nothing is relied on until the attorney verifies it. The date on a notice always wins over the rule, and changing a window resets its verification."
       />

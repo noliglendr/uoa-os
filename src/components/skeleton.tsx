@@ -1,7 +1,7 @@
 // Grey placeholders in the shape of each page, shown while its data loads.
 
 function Bar({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded-md bg-slate-200/80 ${className}`} />;
+  return <div className={`shimmer rounded-md ${className}`} />;
 }
 
 function Box({ children, className = "" }: { children: React.ReactNode; className?: string }) {
