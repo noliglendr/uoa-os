@@ -31,8 +31,8 @@ export default function SweepPage({ searchParams }: PageProps<"/sweep">) {
 async function Sweep() {
   // One database call, alongside the sign-in check.
   const supabase = await createClient();
-  const [, { data, error }] = await Promise.all([requireStaff(), supabase.rpc("sweep_data")]);
-  if (error) throw error;
+  const [, { data, error }] = await Promise.all([requireStaff(), supabase.rpc("sweep_data", {}, { get: true })]);
+  if (error) throw new Error(error.message);
   const { items, last, due } = buildSweep(data as SweepData);
   const names = data.names as Record<string, string>;
   const dueKeys = new Set(due.map((i) => i.key));

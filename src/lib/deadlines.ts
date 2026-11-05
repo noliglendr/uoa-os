@@ -148,7 +148,7 @@ export function computeDeadline(input: DeadlineInput): ComputedDeadline {
   const extension = Boolean(mailed && rule?.mailingExtension);
   let computed: string | null = null;
   if (rule?.days != null) {
-    if (!triggerDate) throw new Error(`Rule ${rule.code} needs a start date`);
+    if (!triggerDate) throw new Error(`Rule ${rule.code} counts from a start date: fill in "Start date" (the notice, decision or order date).`);
     computed = addDays(triggerDate, rule.days + (extension ? mailingExtensionDays : 0));
   }
 
@@ -166,7 +166,9 @@ export function computeDeadline(input: DeadlineInput): ComputedDeadline {
     rawDueDate = computed;
   } else {
     throw new Error(
-      rule ? `Rule ${rule.code} uses the date on the notice: enter that date` : "Enter the due date",
+      rule
+        ? `Rule ${rule.code} uses the date on the notice: fill in "Date on the notice".`
+        : 'With "No rule", fill in "Date on the notice" (the due date).',
     );
   }
 

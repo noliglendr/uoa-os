@@ -75,8 +75,8 @@ type Setting = { key: string; value: any; description: string | null; decision: 
 async function Settings() {
   // One database call, alongside the sign-in check.
   const supabase = await createClient();
-  const [{ staff }, { data, error }] = await Promise.all([requireStaff(), supabase.rpc("settings_page")]);
-  if (error) throw error;
+  const [{ staff }, { data, error }] = await Promise.all([requireStaff(), supabase.rpc("settings_page", {}, { get: true })]);
+  if (error) throw new Error(error.message);
   const names = data.names as Record<string, string>;
   const principal = canManage(staff);
   if (!principal) return <NotForYourRole who="the principal and administrators" />;

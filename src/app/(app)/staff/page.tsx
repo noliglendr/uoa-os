@@ -28,8 +28,8 @@ async function Staff() {
   // One database call, alongside the sign-in check. Emails, two-step status
   // and last sign-in come from Supabase Auth, for the principal and administrators only.
   const supabase = await createClient();
-  const [{ staff }, { data, error }] = await Promise.all([requireStaff(), supabase.rpc("staff_page")]);
-  if (error) throw error;
+  const [{ staff }, { data, error }] = await Promise.all([requireStaff(), supabase.rpc("staff_page", {}, { get: true })]);
+  if (error) throw new Error(error.message);
   const manager = canManage(staff);
   if (!manager) return <NotForYourRole who="the principal and administrators" />;
   const principal = staff?.role === "principal";

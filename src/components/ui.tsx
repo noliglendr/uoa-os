@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ErrorToast } from "./error-toast";
 import { Icon, type IconName } from "./icons";
 import { inputClass } from "./styles";
 
@@ -146,14 +147,7 @@ export { Loading } from "./skeleton";
 export async function ErrorBanner({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const error = (await searchParams).error;
   if (!error) return null;
-  return (
-    <p role="alert" className="flex gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-      <span aria-hidden>⚠</span>
-      <span>
-        <strong>Not saved.</strong> {String(error)}
-      </span>
-    </p>
-  );
+  return <ErrorToast message={String(error)} />;
 }
 
 export function Table({ head, children }: { head: string[]; children: ReactNode }) {

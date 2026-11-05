@@ -48,8 +48,8 @@ async function DashboardContent() {
   const supabase = await createClient();
   const [{ staff }, { data, error }, { data: staffList }] = await Promise.all([
     requireStaff(),
-    supabase.rpc("dashboard_data"),
-    supabase.rpc("staff_page"),
+    supabase.rpc("dashboard_data", {}, { get: true }),
+    supabase.rpc("staff_page", {}, { get: true }),
   ]);
   if (!staff) {
     return (
@@ -58,7 +58,7 @@ async function DashboardContent() {
       </p>
     );
   }
-  if (error || !data) throw error ?? new Error("Could not load the dashboard.");
+  if (error || !data) throw new Error(error?.message ?? "Could not load the dashboard.");
   const attorney = isAttorney(staff);
   const sweep = buildSweep(data.sweep as SweepData);
   const lastActivity = data.last_activity as Record<string, string>;

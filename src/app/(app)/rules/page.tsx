@@ -27,8 +27,8 @@ export default function RulesPage({ searchParams }: PageProps<"/rules">) {
 async function Rules() {
   // One database call, alongside the sign-in check.
   const supabase = await createClient();
-  const [{ staff }, { data, error }] = await Promise.all([requireStaff(), supabase.rpc("rules_page")]);
-  if (error) throw error;
+  const [{ staff }, { data, error }] = await Promise.all([requireStaff(), supabase.rpc("rules_page", {}, { get: true })]);
+  if (error) throw new Error(error.message);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rules = data.rules as any[];
   const names = data.names as Record<string, string>;

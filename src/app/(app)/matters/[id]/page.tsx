@@ -63,8 +63,8 @@ async function Matter({
   const tab: TabId = TABS.some((t) => t.id === requested) ? (requested as TabId) : "overview";
   // One database call for the whole matter, alongside the sign-in check.
   const supabase = await createClient();
-  const [{ staff }, { data: page, error }] = await Promise.all([requireStaff(), supabase.rpc("matter_page", { p_matter: id })]);
-  if (error) throw error;
+  const [{ staff }, { data: page, error }] = await Promise.all([requireStaff(), supabase.rpc("matter_page", { p_matter: id }, { get: true })]);
+  if (error) throw new Error(error.message);
   if (!page) notFound();
   const matter = page.matter;
 
