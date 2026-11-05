@@ -27,6 +27,8 @@ type Control =
   | { kind: "numbers"; unit: string }
   | { kind: "choice"; options: Record<string, string> }
   | { kind: "multi"; options: Record<string, string> }
+  // A dropdown whose choices are whole JSON values (sent as JSON, read by the json branch of updateSetting).
+  | { kind: "preset"; options: { label: string; value: unknown }[] }
   | { kind: "json" };
 
 const UI: Record<string, { title: string; group: string; control: Control }> = {
@@ -43,7 +45,19 @@ const UI: Record<string, { title: string; group: string; control: Control }> = {
   "dashboard.stalled_days": { title: "A matter is stalled after", group: "Deadlines and reminders", control: { kind: "number", unit: "quiet days" } },
   "attorney_of_record.default": { title: "Default attorney of record", group: "Matters", control: { kind: "choice", options: { principal: "The principal" } } },
   next_phase_new_matter: { title: "Refile or next phase opens a new matter", group: "Matters", control: { kind: "bool", yes: "Yes, new matter", no: "No, same matter" } },
-  premium_processing: { title: "Premium processing", group: "Matters", control: { kind: "json" } },
+  premium_processing: {
+    title: "Premium processing",
+    group: "Matters",
+    control: {
+      kind: "preset",
+      options: [
+        { label: "Ask on each matter, default No", value: { mode: "ask_per_matter", default: false } },
+        { label: "Ask on each matter, default Yes", value: { mode: "ask_per_matter", default: true } },
+        { label: "Always use premium processing", value: { mode: "always", default: true } },
+        { label: "Never use premium processing", value: { mode: "never", default: false } },
+      ],
+    },
+  },
   delegated_account_access: {
     title: "Staff access to the attorney's USCIS/ECAS accounts",
     group: "Access and clients",
@@ -158,6 +172,19 @@ function Editor({ control, value }: { control: Control; value: any }) {
           ))}
         </fieldset>
       );
+    case "preset": {
+      const current = control.options.find((o) => same(o.value, value));
+      return (
+        <select name="value" defaultValue={JSON.stringify(current?.value ?? value)} className={`${inputClass} w-full`}>
+          {control.options.map((o) => (
+            <option key={o.label} value={JSON.stringify(o.value)}>
+              {o.label}
+            </option>
+          ))}
+          {!current && <option value={JSON.stringify(value)}>{JSON.stringify(value)}</option>}
+        </select>
+      );
+    }
     default:
       return <input name="value" defaultValue={JSON.stringify(value)} className={`${inputClass} w-full font-mono text-xs`} />;
   }
@@ -176,7 +203,18 @@ function show(control: Control, value: any): string {
       return control.options[String(value)] ?? String(value);
     case "multi":
       return (value as string[]).map((v) => control.options[v] ?? v).join(", ");
+    case "preset":
+      return control.options.find((o) => same(o.value, value))?.label ?? JSON.stringify(value);
     default:
       return JSON.stringify(value);
   }
+}
+
+/** Same JSON value, whatever the key order (the database may reorder object keys). */
+function same(a: unknown, b: unknown): boolean {
+  const norm = (v: unknown): unknown =>
+    v && typeof v === "object" && !Array.isArray(v)
+      ? Object.fromEntries(Object.entries(v).sort(([x], [y]) => x.localeCompare(y)).map(([k, x]) => [k, norm(x)]))
+      : v;
+  return JSON.stringify(norm(a)) === JSON.stringify(norm(b));
 }
