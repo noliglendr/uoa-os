@@ -116,6 +116,24 @@ do $$ begin
   assert (select count(*) from public.filings where matter_id = pg_temp.m()) = 2, 'nothing is deleted';
 end $$;
 
+-- Entering the receipt number after filing logs the receipt (20261105000200).
+reset role;
+insert into public.gates (matter_id, stage, approved_by) values (pg_temp.m(), 6, '00000000-0000-0000-0000-00000000000a');
+set local role authenticated;
+update public.filings set filed_at = now(), filing_method = 'Courier'
+where matter_id = pg_temp.m() and form_type = 'I-140';
+do $$ begin
+  assert (select receipt_logged_at is null from public.filings where matter_id = pg_temp.m() and form_type = 'I-140'),
+    'filing alone does not log the receipt';
+end $$;
+select public.edit_record('filings', (select id from public.filings where matter_id = pg_temp.m() and form_type = 'I-140'),
+  '{"ref_no": "TEST-0001"}');
+do $$ begin
+  assert (select receipt_logged_at is not null and stage >= 7 from public.filings where matter_id = pg_temp.m() and form_type = 'I-140'),
+    'receipt number logs the receipt';
+  assert exists (select 1 from public.event_log where event_type = 'receipt.logged' and matter_id = pg_temp.m()), 'receipt.logged';
+end $$;
+
 -- A closed or declined matter can't be corrected.
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
 insert into public.matters (code, summary, matter_type) values ('Matter D', 'Synthetic declined matter', 'petition');
