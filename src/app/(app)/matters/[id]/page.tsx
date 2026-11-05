@@ -20,6 +20,7 @@ import {
   NoticesCard,
   PartiesCard,
   TasksCard,
+  VoidedCard,
   type MatterData,
 } from "./sections";
 
@@ -67,21 +68,30 @@ async function Matter({
   if (!page) notFound();
   const matter = page.matter;
 
+  // Rows entered in error (decision #20) leave the work and are listed in History.
+  type Rows = { voided_at?: string | null }[];
+  const live = <T extends Rows>(rows: T) => rows.filter((r) => !r.voided_at) as T;
+  const voided = (["parties", "filings", "notices", "deadlines", "checklist"] as const).flatMap((kind) =>
+    (page[kind] as Rows).filter((r) => r.voided_at).map((row) => ({ kind, row })),
+  );
+
   const data: MatterData = {
     matter,
     attorney: isAttorney(staff),
     canWork: staff?.role !== "intake",
+    open: matter.status === "prospect" || matter.status === "active",
     checks: page.checks,
     closure: page.closure,
     gates: page.gates,
-    parties: page.parties,
+    parties: live(page.parties),
     appearances: page.appearances,
-    filings: page.filings,
+    filings: live(page.filings),
     cycles: page.cycles,
     cycleChecks: page.cycle_checks,
-    notices: page.notices,
-    deadlines: page.deadlines,
-    checklist: page.checklist,
+    notices: live(page.notices),
+    deadlines: live(page.deadlines),
+    checklist: live(page.checklist),
+    voided,
     tasks: page.tasks,
     events: page.events,
     names: Object.fromEntries((page.profiles as { id: string; display_name: string }[]).map((p) => [p.id, p.display_name])),
@@ -196,7 +206,12 @@ async function Matter({
               <AppearancesCard d={data} />
             </>
           )}
-          {tab === "history" && <HistoryCard d={data} />}
+          {tab === "history" && (
+            <>
+              <VoidedCard d={data} />
+              <HistoryCard d={data} />
+            </>
+          )}
           </div>
         </div>
 

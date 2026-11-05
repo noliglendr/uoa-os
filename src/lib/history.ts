@@ -48,6 +48,13 @@ const FIELD: Record<string, string> = {
   receipt_logged_at: "receipt logged",
   urgent: "urgent",
   hard_deadline: "hard deadline",
+  party_role: "role",
+  form_type: "form",
+  filing_method: "filing method",
+  fee_cents: "fee (cents)",
+  proof_ref: "proof ref",
+  notice_date: "notice date",
+  received_on: "received on",
 };
 
 function str(v: unknown): string {
@@ -113,6 +120,9 @@ export function describeEvent(e: Event): string {
   const what = str(p.label ?? p.title ?? p.form_type ?? "");
 
   if (verb === "created") return `added the ${name}${what ? ` “${what}”` : ""}`;
+  if (verb === "updated" && changed.voided_at) {
+    return `marked the ${name} as entered in error${changed.void_reason ? `: ${str(changed.void_reason)}` : ""}`;
+  }
   if (verb === "updated") {
     const parts = Object.entries(changed).map(([k, v]) => {
       if (k === "status" && entity === "checklist_item") return `status: ${label(CHECKLIST_STATUS, String(v))}`;

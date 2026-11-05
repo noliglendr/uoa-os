@@ -46,17 +46,21 @@ import {
   updateDeadline,
   updateFiling,
 } from "../../actions";
+import { RecordEditor } from "./record-editor";
 
 // Rows come from Supabase without generated types.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = any;
 type Check = { item: string; ok: boolean };
+type VoidedKind = "parties" | "filings" | "notices" | "deadlines" | "checklist";
 
 export type MatterData = {
   matter: Row;
   attorney: boolean;
   /** False for Intake: opens matters and checks conflicts only (decision #17). */
   canWork: boolean;
+  /** Prospect or active: its records can still be corrected. */
+  open: boolean;
   checks: Check[];
   closure: Check[];
   gates: Row[];
@@ -68,6 +72,8 @@ export type MatterData = {
   notices: Row[];
   deadlines: Row[];
   checklist: Row[];
+  /** Rows entered in error (decision #20), shown in History only. */
+  voided: { kind: VoidedKind; row: Row }[];
   tasks: Row[];
   events: Row[];
   names: Record<string, string>;
@@ -302,6 +308,21 @@ export function DeadlinesCard({ d }: { d: MatterData }) {
                       </ConfirmButton>
                     </Inline>
                   )}
+                  {d.open && (
+                    <RecordEditor
+                      table="deadlines"
+                      id={x.id}
+                      title={`deadline "${x.title}"`}
+                      back={d.back}
+                      canVoid={d.attorney}
+                      note={x.attorney_verified ? "A new date needs the attorney's verification again." : undefined}
+                      fields={[
+                        { name: "title", label: "Title", value: x.title, required: true },
+                        { name: "due_date", label: "Due date", type: "date", value: x.due_date, required: true },
+                        ...(x.kind === "appointment" ? [{ name: "attendee", label: "Who must attend", value: x.attendee, hint: "Role label only" }] : []),
+                      ]}
+                    />
+                  )}
                 </div>
               )}
             </li>
@@ -426,6 +447,22 @@ export function NoticesCard({ d }: { d: MatterData }) {
                         </select>
                         <Button>Open response</Button>
                       </Inline>
+                    )}
+                    {d.open && (
+                      <RecordEditor
+                        table="notices"
+                        id={n.id}
+                        title={`${label(NOTICE_TYPES, n.notice_type)} notice`}
+                        back={d.back}
+                        canVoid
+                        note="Wrong type or wrong matter? Mark it as entered in error and log it again."
+                        fields={[
+                          { name: "channel", label: "Channel", type: "select", value: n.channel, options: CHANNELS },
+                          { name: "notice_date", label: "Notice date", type: "date", value: n.notice_date, required: true },
+                          { name: "received_on", label: "Received on", type: "date", value: n.received_on, required: true },
+                          { name: "note", label: "Note", value: n.note, hint: "No client facts" },
+                        ]}
+                      />
                     )}
                   </div>
                 </Td>
@@ -584,6 +621,27 @@ export function FilingsCard({ d }: { d: MatterData }) {
                       <Button>Record next step</Button>
                     </Inline>
                   )}
+                  {d.open && (
+                    <RecordEditor
+                      table="filings"
+                      id={f.id}
+                      title={`filing ${f.form_type}`}
+                      back={d.back}
+                      canVoid={!f.filed_at || d.attorney}
+                      fields={[
+                        { name: "form_type", label: "Form", value: f.form_type, required: true },
+                        { name: "forum", label: "Forum", type: "select", value: f.forum, options: FORUMS },
+                        { name: "ref_no", label: "Receipt / ref no.", value: f.ref_no, hint: "Made-up numbers only until real data is approved" },
+                        ...(f.filed_at
+                          ? [
+                              { name: "filing_method", label: "Filing method", value: f.filing_method },
+                              { name: "fee", label: "Fee ($)", type: "number" as const, value: f.fee_cents == null ? null : (f.fee_cents / 100).toFixed(2) },
+                              { name: "proof_ref", label: "Proof ref", value: f.proof_ref },
+                            ]
+                          : []),
+                      ]}
+                    />
+                  )}
                 </Td>
               </tr>
             );
@@ -710,6 +768,19 @@ function ChecklistList({ d, items, cycleId, editable }: { d: MatterData; items: 
                   </select>
                   <Button>Save</Button>
                 </Inline>
+                {d.open && (
+                  <RecordEditor
+                    table="checklist_items"
+                    id={i.id}
+                    title={`item "${i.label}"`}
+                    back={d.back}
+                    canVoid={!i.reviewed_by || d.attorney}
+                    fields={[
+                      { name: "label", label: "Item", value: i.label, required: true },
+                      { name: "owner", label: "Owner", type: "select", value: i.owner, options: CHECKLIST_OWNERS },
+                    ]}
+                  />
+                )}
               </Td>
             </tr>
           ))}
@@ -763,6 +834,19 @@ export function PartiesCard({ d }: { d: MatterData }) {
                 <Inline action={clearConflict} values={{ back: d.back, party_id: p.id, value: String(!p.conflict_cleared) }}>
                   <Button>{p.conflict_cleared ? "Undo" : "Mark cleared"}</Button>
                 </Inline>
+                {d.open && (d.canWork || d.matter.stage === 1) && (
+                  <RecordEditor
+                    table="parties"
+                    id={p.id}
+                    title={p.label}
+                    back={d.back}
+                    canVoid
+                    fields={[
+                      { name: "label", label: "Label", value: p.label, required: true, hint: "Role label only, e.g. Client 2" },
+                      { name: "party_role", label: "Role", type: "select", value: p.party_role, options: PARTY_ROLES },
+                    ]}
+                  />
+                )}
               </Td>
             </tr>
           ))}
@@ -882,6 +966,50 @@ export function TasksCard({ d }: { d: MatterData }) {
           ))}
         </ul>
       )}
+    </Card>
+  );
+}
+
+const VOIDED_KIND: Record<VoidedKind, string> = {
+  parties: "Party",
+  filings: "Filing",
+  notices: "Notice",
+  deadlines: "Deadline",
+  checklist: "Checklist item",
+};
+
+function voidedName(kind: VoidedKind, r: Row): string {
+  switch (kind) {
+    case "parties":
+    case "checklist":
+      return r.label;
+    case "filings":
+      return `${r.form_type}${r.ref_no ? ` (${r.ref_no})` : ""}`;
+    case "notices":
+      return `${label(NOTICE_TYPES, r.notice_type)}, dated ${formatDate(r.notice_date)}`;
+    case "deadlines":
+      return `${r.title}, due ${formatDate(r.due_date)}`;
+  }
+}
+
+export function VoidedCard({ d }: { d: MatterData }) {
+  if (d.voided.length === 0) return null;
+  const rows = [...d.voided].sort((a, b) => String(b.row.voided_at).localeCompare(String(a.row.voided_at)));
+  return (
+    <Card title="Entered in error" description="Taken out of the work, kept in the record. These no longer count in any check.">
+      <ul className="-my-2 divide-y divide-slate-100 text-sm">
+        {rows.map(({ kind, row }) => (
+          <li key={row.id} className="py-2.5">
+            <div className="flex flex-wrap items-baseline gap-2">
+              <Badge>{VOIDED_KIND[kind]}</Badge>
+              <span className="text-slate-500 line-through decoration-slate-300">{voidedName(kind, row)}</span>
+            </div>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {row.void_reason} · {d.names[row.voided_by] ?? "Someone"}, {formatDateTime(row.voided_at)}
+            </p>
+          </li>
+        ))}
+      </ul>
     </Card>
   );
 }

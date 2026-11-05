@@ -347,6 +347,49 @@ export async function setChecklistStatus(form: FormData) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Fixing mistakes (decision #20): Edit, and "Entered in error" instead of delete
+// ---------------------------------------------------------------------------
+
+export type CorrectionState = { ok?: string; error?: string } | null;
+
+/** Edit a row's listed fields (form fields named "f_<column>"; "f_fee" is in dollars). */
+export async function editRecord(_prev: CorrectionState, form: FormData): Promise<CorrectionState> {
+  const values: Record<string, string | number | null> = {};
+  for (const [key, raw] of form.entries()) {
+    if (!key.startsWith("f_")) continue;
+    const name = key.slice(2);
+    const value = String(raw).trim();
+    if (name === "fee") {
+      const dollars = Number(value);
+      if (value && !(Number.isFinite(dollars) && dollars >= 0)) return { error: "Enter the fee as a number, for example 715." };
+      values.fee_cents = value ? Math.round(dollars * 100) : null;
+    } else {
+      values[name] = value || null;
+    }
+  }
+  return correction(form, "Saved. The old value is kept in History.", (db) =>
+    db.rpc("edit_record", { p_table: text(form, "table"), p_id: text(form, "id"), p_values: values }),
+  );
+}
+
+export async function markEnteredInError(_prev: CorrectionState, form: FormData): Promise<CorrectionState> {
+  return correction(form, "Marked as entered in error.", (db) =>
+    db.rpc("mark_entered_in_error", { p_table: text(form, "table"), p_id: text(form, "id"), p_reason: text(form, "reason") }),
+  );
+}
+
+async function correction(form: FormData, ok: string, change: (db: Client) => PromiseLike<{ error: PostgrestError | null }>): Promise<CorrectionState> {
+  try {
+    const { error } = await change(await createClient());
+    if (error) return { error: friendly(error) };
+  } catch (e) {
+    return { error: e instanceof Error ? friendly(e) : "Something went wrong." };
+  }
+  revalidatePath(new URL(back(form), "http://app").pathname);
+  return { ok };
+}
+
 export async function completeTask(form: FormData) {
   await run(form, (db) => db.from("tasks").update({ status: "done" }).eq("id", text(form, "task_id")));
 }

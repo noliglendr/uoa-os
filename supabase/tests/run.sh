@@ -14,6 +14,7 @@ run -f "$DIR/foundation.test.sql" | grep PASSED
 run -f "$DIR/matters.test.sql" | grep PASSED
 run -f "$DIR/admin.test.sql" | grep PASSED
 run -f "$DIR/roles.test.sql" | grep PASSED
+run -f "$DIR/corrections.test.sql" | grep PASSED
 run <<SQL
 begin;
 insert into auth.users (id) values ('00000000-0000-0000-0000-00000000000a');
