@@ -9,9 +9,11 @@ const nextConfig: NextConfig = {
   experimental: {
     turbopackFileSystemCacheForDev: fsCache,
     turbopackFileSystemCacheForBuild: fsCache,
-    // Keep visited pages for 30 s in the browser, so moving between menu items
-    // is instant. Every save (server action) refreshes the page right away.
-    staleTimes: { dynamic: 30 },
+    // Keep visited pages for 30 s in the browser, and menu pages (fully
+    // prefetched in the background) for 30 s too, so moving between menu items
+    // is instant even on a slow connection. Every save (server action)
+    // refreshes the page right away.
+    staleTimes: { dynamic: 30, static: 30 },
   },
   partialPrefetching: true,
   turbopack: {

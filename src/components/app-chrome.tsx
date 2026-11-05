@@ -117,6 +117,7 @@ export function TabList({ pathname }: { pathname: string }) {
           <li key={t.href}>
             <Link
               href={t.href}
+              prefetch
               aria-current={active ? "page" : undefined}
               className={`flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium ${active ? "text-navy-900" : "text-slate-500"}`}
             >

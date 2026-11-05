@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { ErrorBanner, HeroChip } from "@/components/ui";
 import { MatterSkeleton } from "@/components/skeleton";
-import { LinkPending } from "@/components/link-pending";
 import { Icon } from "@/components/icons";
 import { requireStaff, isAttorney } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
@@ -23,6 +22,7 @@ import {
   VoidedCard,
   type MatterData,
 } from "./sections";
+import { MatterTabs } from "./matter-tabs";
 
 const TABS = [
   { id: "overview", label: "Overview" },
@@ -99,6 +99,9 @@ async function Matter({
     back: `/matters/${id}?tab=${tab}`,
   };
 
+  // All tabs come with the page (switching is instant); each tab's forms return to that tab after a save.
+  const on = (t: TabId): MatterData => ({ ...data, back: `/matters/${id}?tab=${t}` });
+
   const now = today();
   const openDeadlines = data.deadlines.filter((x) => x.status === "open");
   const evidenceOpen = data.checklist.filter((i) => i.cycle_id === null && !["received", "drafted", "approved", "waived"].includes(i.status)).length;
@@ -146,73 +149,50 @@ async function Matter({
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <div className="min-w-0 space-y-5">
-          <nav className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0" aria-label="Matter sections">
-            <ul className="flex min-w-max gap-1 border-b border-slate-200">
-              {TABS.map((t) => {
-                const active = t.id === tab;
-                const c = counts[t.id];
-                return (
-                  <li key={t.id}>
-                    <Link
-                      href={`/matters/${id}?tab=${t.id}`}
-                      scroll={false}
-                      aria-current={active ? "page" : undefined}
-                      className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-medium ${
-                        active ? "border-navy-800 text-navy-900" : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800"
-                      }`}
-                    >
-                      {t.label}
-                      <LinkPending className="h-3 w-3" />
-                      {c && c.n > 0 && (
-                        <span className={`rounded-full px-1.5 text-xs ${c.alert ? "bg-gold-100 text-gold-600" : "bg-slate-100 text-slate-600"}`}>{c.n}</span>
-                      )}
+          <MatterTabs
+            initial={tab}
+            tabs={TABS.map((t) => ({ id: t.id, label: t.label, n: counts[t.id]?.n, alert: counts[t.id]?.alert }))}
+            panels={{
+              overview: (
+                <>
+                  <NextStepCard d={on("overview")} />
+                  {openCycles.map((c) => (
+                    <Link key={c.id} href={`/matters/${id}?tab=filings`} className="flex items-center gap-3 rounded-xl border border-gold-300 bg-gold-100/60 px-4 py-3 text-sm hover:bg-gold-100">
+                      <Icon name="alert" className="h-5 w-5 text-gold-600" />
+                      <span className="flex-1">
+                        <strong>{c.kind.toUpperCase()} response in progress</strong>, stage {c.stage}: {STAGES.find((s) => s.n === c.stage)?.name}
+                      </span>
+                      <Icon name="arrowRight" />
                     </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
-
-          <div key={tab} className="fade-in space-y-5">
-          {tab === "overview" && (
-            <>
-              <NextStepCard d={data} />
-              {openCycles.map((c) => (
-                <Link key={c.id} href={`/matters/${id}?tab=filings`} className="flex items-center gap-3 rounded-xl border border-gold-300 bg-gold-100/60 px-4 py-3 text-sm hover:bg-gold-100">
-                  <Icon name="alert" className="h-5 w-5 text-gold-600" />
-                  <span className="flex-1">
-                    <strong>{c.kind.toUpperCase()} response in progress</strong>, stage {c.stage}: {STAGES.find((s) => s.n === c.stage)?.name}
-                  </span>
-                  <Icon name="arrowRight" />
-                </Link>
-              ))}
-              <div className="grid gap-5 xl:grid-cols-2">
-                <DeadlinesCard d={data} />
-                <TasksCard d={data} />
-              </div>
-            </>
-          )}
-          {tab === "notices" && <NoticesCard d={data} />}
-          {tab === "filings" && (
-            <>
-              <CyclesCard d={data} />
-              <FilingsCard d={data} />
-            </>
-          )}
-          {tab === "evidence" && <ChecklistCard d={data} />}
-          {tab === "parties" && (
-            <>
-              <PartiesCard d={data} />
-              <AppearancesCard d={data} />
-            </>
-          )}
-          {tab === "history" && (
-            <>
-              <VoidedCard d={data} />
-              <HistoryCard d={data} />
-            </>
-          )}
-          </div>
+                  ))}
+                  <div className="grid gap-5 xl:grid-cols-2">
+                    <DeadlinesCard d={on("overview")} />
+                    <TasksCard d={on("overview")} />
+                  </div>
+                </>
+              ),
+              notices: <NoticesCard d={on("notices")} />,
+              filings: (
+                <>
+                  <CyclesCard d={on("filings")} />
+                  <FilingsCard d={on("filings")} />
+                </>
+              ),
+              evidence: <ChecklistCard d={on("evidence")} />,
+              parties: (
+                <>
+                  <PartiesCard d={on("parties")} />
+                  <AppearancesCard d={on("parties")} />
+                </>
+              ),
+              history: (
+                <>
+                  <VoidedCard d={on("history")} />
+                  <HistoryCard d={on("history")} />
+                </>
+              ),
+            }}
+          />
         </div>
 
         <aside className="order-first space-y-5 lg:order-none">
