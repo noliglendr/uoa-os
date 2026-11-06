@@ -8,8 +8,8 @@ UOA OS sends deadline reminders through Resend (resend.com). Until uoalegal.com 
 
 ## What changes, and what does not
 
-- **Adds** 3 records (plus 1 optional). They sit on `send.uoalegal.com` and `resend._domainkey.uoalegal.com`.
-- **Does not touch** the firm's existing email: the main MX records and the main SPF record of `uoalegal.com` stay exactly as they are.
+- **Adds** 3 records (plus 1 optional). They sit on `send.uoalegal.com`, `rsend.uoalegal.com` and `resend._domainkey.uoalegal.com`. The DNS for uoalegal.com is at **Hostinger** (hPanel → Domains → uoalegal.com → DNS / Nameservers); the firm's mail is Titan.
+- **Does not touch** the firm's existing email: the main MX records (`titan.email`) and the main SPF record of `uoalegal.com` stay exactly as they are.
 - No mailbox is needed for `reminders@`. It is a sender address only.
 
 ## Steps
@@ -25,12 +25,13 @@ At the DNS provider for uoalegal.com, add the records **exactly as Resend shows 
 
 | Type | Name / Host | Value | Note |
 |---|---|---|---|
-| MX | `send` | `feedback-smtp.us-east-1.amazonses.com` | Priority 10 |
-| TXT | `send` | `v=spf1 include:amazonses.com ~all` | SPF for the `send` subdomain only |
 | TXT | `resend._domainkey` | a long `p=...` key from Resend | DKIM signature |
+| CNAME | `rsend` | `rsend.…mta.net` from Resend | Sending (SPF) |
+| CNAME | `send` | `send.…mta.net` from Resend | Sending (SPF) |
 | TXT (optional) | `_dmarc` | `v=DMARC1; p=none;` | **Only if no `_dmarc` record exists yet.** Never add a second one. |
 
 Tips:
+- Resend shortens long values with `[…]`: copy each one with Resend's copy button, never by hand.
 - Some providers add the domain by themselves: enter `send`, not `send.uoalegal.com`.
 - If the firm's DNS is managed by the web host or registrar, the menu is usually called **DNS**, **DNS Zone** or **Advanced DNS**.
 
@@ -48,4 +49,4 @@ Tips:
 
 - **Records stay "Pending"** after a few hours: check the host name (no doubled `uoalegal.com.uoalegal.com`) and that the DKIM value was pasted in full.
 - **Emails land in spam:** add the DMARC record above (only if none exists), then wait a day.
-- **To undo:** remove the 3 records. The firm's normal email is not affected either way.
+- **To undo:** remove the 3 records (and `_dmarc` if it was added). The firm's normal email is not affected either way.
