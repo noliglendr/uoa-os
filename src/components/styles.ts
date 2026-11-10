@@ -18,3 +18,12 @@ export function buttonClass(variant: ButtonVariant = "secondary", extra = "") {
 
 export const inputClass =
   "h-8 rounded-md border border-slate-300 bg-white px-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-navy-500 focus:outline-none focus:ring-2 focus:ring-navy-100";
+
+/** Letter text boxes: tall enough to read the whole letter, in normal text. */
+export const letterBoxClass =
+  "block w-full min-h-64 resize-y rounded-md border border-slate-300 bg-white px-4 py-3 text-sm leading-relaxed text-slate-900 shadow-sm focus:border-navy-500 focus:outline-none focus:ring-2 focus:ring-navy-100";
+
+/** Rows to show a letter without scrolling inside the box. */
+export function letterRows(text: string) {
+  return Math.min(Math.max(text.split("\n").length + 2, 10), 40);
+}

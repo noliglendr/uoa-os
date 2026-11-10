@@ -24,6 +24,7 @@ const SECTIONS: { title: string; items: { href: string; label: string; icon: Ico
     title: "Firm",
     items: [
       { href: "/rules", label: "Deadline rules", icon: "scale" },
+      { href: "/templates", label: "Letter templates", icon: "mail" },
       { href: "/staff", label: "Staff", icon: "users", roles: MANAGERS },
       { href: "/settings", label: "Settings", icon: "cog", roles: MANAGERS },
       { href: "/export", label: "Export", icon: "download", roles: EXPORTERS },

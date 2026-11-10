@@ -78,6 +78,11 @@ export type MatterData = {
   events: Row[];
   names: Record<string, string>;
   rules: Row[];
+  drafts: Row[];
+  draftTemplates: Row[];
+  draftingEnabled: boolean;
+  /** Attorney, principal or paralegal. */
+  canDraft: boolean;
   back: string;
 };
 

@@ -9,6 +9,8 @@ import { redirect } from "next/navigation";
 import type { PostgrestError } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { computeDeadline, today, type DeadlineRule } from "@/lib/deadlines";
+import { generateDraft } from "@/lib/draft-ai";
+import { draftFacts, draftPrompt, fillFirmBlanks, fillItemList, missingBlanks, type DraftKind } from "@/lib/drafting";
 
 type Client = Awaited<ReturnType<typeof createClient>>;
 
@@ -461,5 +463,113 @@ export async function recordSweepCheck(form: FormData) {
       p_matter_id: text(form, "matter_id"),
       p_payload: { result: text(form, "result"), note: optional(form, "note") },
     }),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// AI letter drafts (decisions #22, #23). The attorney approves; nothing is sent.
+// ---------------------------------------------------------------------------
+
+export type DraftInput = { matterId: string; kind: DraftKind; filingId: string | null };
+export type DraftPreview = { text: string; model: string } | { error: string };
+
+function problem(e: unknown): string {
+  return e && typeof e === "object" && "message" in e ? friendly(e as Error) : "Something went wrong.";
+}
+
+/** Makes the letter for one matter. Saves nothing. */
+async function buildDraft(db: Client, { matterId, kind, filingId }: DraftInput) {
+  // Refused requests (role, setting off, template not approved, matter closed) stop here.
+  const allowed = await db.rpc("draft_start_check", { p_matter: matterId, p_kind: kind });
+  if (allowed.error) throw allowed.error;
+
+  const [matter, template, filing, checklist] = await Promise.all([
+    db.from("matters").select("*").eq("id", matterId).single(),
+    db.from("draft_templates").select("body").eq("kind", kind).single(),
+    filingId ? db.from("filings").select("*").eq("id", filingId).single() : Promise.resolve({ data: null, error: null }),
+    db.from("checklist_items").select("label, owner, status, voided_at").eq("matter_id", matterId),
+  ]);
+  const failed = matter.error ?? template.error ?? filing.error ?? checklist.error;
+  if (failed) throw failed;
+  if (!template.data) throw new Error("The letter template was not found.");
+
+  const body = template.data.body as string;
+  const { system, user } = draftPrompt(body, draftFacts(matter.data, filing.data));
+  const result = await generateDraft(system, user, body);
+  const lost = missingBlanks(body, result.text);
+  if (lost.length) throw new Error(`The AI draft lost ${lost.join(", ")}. Try again.`);
+  const attorney = matter.data.attorney_id
+    ? await db.from("profiles").select("display_name").eq("id", matter.data.attorney_id).maybeSingle()
+    : { data: null, error: null };
+  if (attorney.error) throw attorney.error;
+  const text = fillFirmBlanks(fillItemList(result.text, kind, checklist.data ?? []), {
+    today: new Date(),
+    attorney: (attorney.data?.display_name as string | undefined) ?? null,
+  });
+  return { text, model: result.model };
+}
+
+/** "Make draft": shows the letter in a window. Nothing is saved until "Save draft". */
+export async function previewDraft(input: DraftInput): Promise<DraftPreview> {
+  try {
+    return await buildDraft(await createClient(), input);
+  } catch (e) {
+    return { error: problem(e) };
+  }
+}
+
+/**
+ * "Save draft": the draft is stored and waits for the attorney. Changes typed in
+ * the window are saved as an edit, so History and "Show the first text" keep what
+ * UOA OS made apart from what a person wrote.
+ */
+export async function saveNewDraft(input: DraftInput & { text: string; model: string; edited: string }): Promise<{ error?: string }> {
+  try {
+    const db = await createClient();
+    // With no AI key the letter is made again here, so the first text stored is exactly
+    // the template. An AI letter can't be made the same twice, so the one shown is kept.
+    const draft = process.env.ANTHROPIC_API_KEY ? { text: input.text, model: input.model } : await buildDraft(db, input);
+    const created = await db.rpc("create_draft", {
+      p_matter: input.matterId,
+      p_kind: input.kind,
+      p_filing: input.filingId,
+      p_body: draft.text,
+      p_model: draft.model,
+    });
+    if (created.error) return { error: friendly(created.error) };
+
+    const edited = input.edited.replace(/\r\n/g, "\n").trim();
+    if (edited && edited !== draft.text.trim()) {
+      const { error } = await db.rpc("edit_draft", { p_draft: created.data, p_body: edited });
+      if (error) {
+        revalidatePath(`/matters/${input.matterId}`);
+        return { error: `The draft was saved as UOA OS made it, but your changes were not: ${friendly(error)} Fix them on the Drafts tab.` };
+      }
+    }
+  } catch (e) {
+    return { error: problem(e) };
+  }
+  revalidatePath(`/matters/${input.matterId}`);
+  revalidatePath("/");
+  return {};
+}
+
+export async function saveDraft(form: FormData) {
+  await run(form, (db) => db.rpc("edit_draft", { p_draft: text(form, "draft_id"), p_body: text(form, "body") }));
+}
+
+export async function reviewDraft(form: FormData) {
+  await run(form, (db) =>
+    db.rpc("review_draft", { p_draft: text(form, "draft_id"), p_decision: text(form, "decision"), p_note: optional(form, "note") }),
+  );
+}
+
+export async function saveTemplate(form: FormData) {
+  await run(form, (db) => db.from("draft_templates").update({ body: text(form, "body") }).eq("kind", text(form, "kind")));
+}
+
+export async function approveTemplate(form: FormData) {
+  await run(form, (db) =>
+    db.from("draft_templates").update({ attorney_approved: text(form, "value") === "true" }).eq("kind", text(form, "kind")),
   );
 }

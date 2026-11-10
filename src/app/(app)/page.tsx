@@ -98,6 +98,9 @@ async function DashboardContent() {
   for (const i of data.drafts as Row[]) {
     work.push({ matterId: i.matter_id, title: `Review third-party draft: ${i.label}`, detail: "Before it goes out for signature", tone: "blue", tab: "filings", due: nextDue(i.matter_id) });
   }
+  for (const x of data.letter_drafts as Row[]) {
+    work.push({ matterId: x.matter_id, title: `Review AI draft: ${x.label}`, detail: "Nobody can use it until you approve it", tone: "blue", tab: "drafts", due: nextDue(x.matter_id) });
+  }
   for (const f of data.untold as Row[]) {
     work.push({ matterId: f.matter_id, title: `Tell the client: ${f.form_type} ${f.decision}`, detail: "The attorney tells the client, not the system", tone: "red", tab: "filings" });
   }

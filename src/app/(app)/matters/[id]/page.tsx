@@ -22,6 +22,7 @@ import {
   VoidedCard,
   type MatterData,
 } from "./sections";
+import { DraftsCard } from "./drafts-card";
 import { MatterTabs } from "./matter-tabs";
 
 const TABS = [
@@ -30,6 +31,7 @@ const TABS = [
   { id: "filings", label: "Filings & responses" },
   { id: "evidence", label: "Evidence" },
   { id: "parties", label: "Parties" },
+  { id: "drafts", label: "Drafts" },
   { id: "history", label: "History" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
@@ -96,6 +98,10 @@ async function Matter({
     events: page.events,
     names: Object.fromEntries((page.profiles as { id: string; display_name: string }[]).map((p) => [p.id, p.display_name])),
     rules: page.rules,
+    drafts: page.drafts,
+    draftTemplates: page.draft_templates,
+    draftingEnabled: page.drafting_enabled === true,
+    canDraft: staff?.role === "paralegal" || isAttorney(staff),
     back: `/matters/${id}?tab=${tab}`,
   };
 
@@ -112,6 +118,7 @@ async function Matter({
     filings: { n: data.filings.length, alert: openCycles.length > 0 },
     evidence: { n: evidenceOpen, alert: evidenceOpen > 0 },
     parties: { n: data.parties.length, alert: data.parties.some((p) => !p.conflict_cleared) },
+    drafts: { n: data.drafts.length, alert: data.drafts.some((x) => x.status === "pending_review") },
     history: { n: data.events.length },
   };
 
@@ -185,6 +192,7 @@ async function Matter({
                   <AppearancesCard d={on("parties")} />
                 </>
               ),
+              drafts: <DraftsCard d={on("drafts")} />,
               history: (
                 <>
                   <VoidedCard d={on("history")} />

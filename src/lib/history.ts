@@ -26,6 +26,8 @@ const ENTITY: Record<string, string> = {
   deadline: "deadline",
   task: "task",
   deadline_rule: "deadline rule",
+  draft: "draft",
+  draft_template: "letter template",
   profile: "staff account",
 };
 
@@ -113,6 +115,15 @@ export function describeEvent(e: Event): string {
       return "downloaded an export";
     case "setting.changed":
       return "changed a firm setting";
+  }
+
+  if (e.event_type === "draft.created") return `made an AI draft (${String(p.kind ?? "").replace(/_/g, " ")}), waiting for the attorney`;
+  if (e.event_type === "draft.updated") {
+    const note = changed.review_note ? `: ${str(changed.review_note)}` : "";
+    if (changed.status === "approved") return "approved the draft";
+    if (changed.status === "rejected") return `rejected the draft${note}`;
+    if (changed.status === "changes_requested") return `sent the draft back${note}`;
+    return "edited the draft, which goes back to the attorney";
   }
 
   const [entity, verb] = e.event_type.split(".");

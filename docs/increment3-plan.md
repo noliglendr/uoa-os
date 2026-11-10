@@ -14,9 +14,9 @@ subtitle: "AI first drafts, attorney approval"
 
 **Dates:**
 
-- **Build and test on made-up matters:** **Jan 4 – Jan 27**, after the Increment 1 pilot
-- **Your review:** **Jan 29**
-- **Live use:** only after you approve D21
+- **Built early:** Step A was built on **Nov 6** and tested on made-up data. It stays **off** until you turn it on.
+- **Your review:** with your review of the finished work, or by **Jan 29** at the latest
+- **Live use:** only after you approve D21, and not before the Increment 1 pilot ends (Dec 18)
 
 **Added tool cost:** a monthly spending limit of **$25** on AI use, so total tools stay within the $150 budget (D5).
 
@@ -46,7 +46,7 @@ subtitle: "AI first drafts, attorney approval"
 
 | Need | How |
 |---|---|
-| No personal data sent to the AI | Only a fixed list of fields is sent: matter type, form, forum, stage, checklist item types and template text. Names, receipt numbers and notes typed by staff are never sent. Automatic tests check this. |
+| No personal data sent to the AI | Only a fixed list of fields is sent: matter type, stage, form name, forum, decision, next step and the template text. Names, receipt numbers, checklist labels and notes typed by staff are never sent. Checklist items are added to the letter after the AI has finished. Automatic tests check this. |
 | No training on firm data | The vendor's **signed contract** must say so. A settings switch is not enough. |
 | Data the vendor keeps | Zero data retention requested from the vendor, with the answer in writing |
 | Who can request a draft | Attorney, principal and paralegal |
@@ -56,16 +56,14 @@ subtitle: "AI first drafts, attorney approval"
 
 # 5. Dates
 
-These dates assume the Increment 1 pilot ends on Dec 18 with nothing missed.
-
 | Step | Date | It's done when |
 |---|---|---|
-| Sample letters collected | Dec 18 | One of each letter, with every personal detail removed |
-| Vendor terms checked | Dec 18 | No-training terms saved; retention answer in writing |
-| Build | Jan 4 – Jan 20 | The three letters draft, wait for approval and are logged on Matters A, B and C |
-| Test | Jan 21 – Jan 27 | No personal data is sent; no draft becomes final without approval |
-| Your review | **Jan 29** | You approve, or list edits |
-| Live use | After D21 | Templates approved; vendor terms and bar-rule check complete |
+| Build and automatic tests | Done Nov 6 | The approval rules and privacy filter pass their tests on made-up data |
+| Test with the real AI service | After the vendor key is set | Three letters drafted on Matters A, B and C; nothing personal sent |
+| Sample letters collected | Dec 18 | One of each letter, with every personal detail removed; they replace the starter wording |
+| Vendor terms checked | Dec 18 | No-training terms saved; retention answer in writing; $25 monthly limit set |
+| Your review | By **Jan 29** | You approve, or list edits |
+| Live use | After D21 and the pilot | Templates approved by you; vendor terms and bar-rule check complete |
 
 # 6. Decisions
 

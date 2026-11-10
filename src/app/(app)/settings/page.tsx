@@ -64,6 +64,7 @@ const UI: Record<string, { title: string; group: string; control: Control }> = {
     control: { kind: "choice", options: { off: "Off: staff prepare, the attorney submits", prepare_only: "Prepare only", submit_after_gate: "Submit after attorney approval" } },
   },
   client_auto_updates: { title: "Automatic updates to clients", group: "Access and clients", control: { kind: "bool", yes: "On", no: "Off" } },
+  "drafting.enabled": { title: "AI first drafts of letters", group: "Access and clients", control: { kind: "bool", yes: "On", no: "Off" } },
   "retention.years_after_close": { title: "Keep closed files for", group: "Records", control: { kind: "number", unit: "years" } },
 };
 

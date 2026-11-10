@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import { ErrorToast } from "./error-toast";
 import { Icon, type IconName } from "./icons";
-import { inputClass } from "./styles";
+import { inputClass, letterBoxClass, letterRows } from "./styles";
 
-export { inputClass };
+export { inputClass, letterBoxClass, letterRows };
 // Submit button with a saving spinner (a client component).
 export { Button } from "./submit-button";
 

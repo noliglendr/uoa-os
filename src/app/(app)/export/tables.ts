@@ -11,6 +11,8 @@ export const EXPORT_TABLES = [
   { table: "escalations", label: "Reminders sent", order: "id" },
   { table: "tasks", label: "Tasks", order: "created_at" },
   { table: "checklist_items", label: "Evidence checklist", order: "created_at" },
+  { table: "drafts", label: "Letter drafts", order: "created_at" },
+  { table: "draft_templates", label: "Letter templates", order: "kind" },
   { table: "deadline_rules", label: "Deadline rules", order: "code" },
   { table: "settings", label: "Settings", order: "key" },
   { table: "profiles", label: "Staff", order: "created_at" },
