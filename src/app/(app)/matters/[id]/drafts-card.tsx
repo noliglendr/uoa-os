@@ -30,9 +30,9 @@ export function DraftsCard({ d }: { d: MatterData }) {
           <Empty>AI drafts are off. The principal can turn them on in Settings.</Empty>
         ) : ready.length === 0 ? (
           <Empty>
-            No letter template is approved yet. The attorney approves each one on the{" "}
+            No template is approved yet. The attorney approves each one on the{" "}
             <Link href="/templates" className="font-medium text-navy-700 hover:underline">
-              Letter templates
+              Templates
             </Link>{" "}
             page.
           </Empty>
@@ -43,6 +43,14 @@ export function DraftsCard({ d }: { d: MatterData }) {
             matterId={d.matter.id}
             letters={ready.map((t) => ({ value: t.kind, label: t.label }))}
             filings={d.filings.map((f) => ({ value: f.id, label: f.form_type }))}
+            cycles={d.cycles
+              .filter((c) => c.kind === "rfe" || c.kind === "noid")
+              .map((c) => ({
+                value: c.id,
+                label: `${c.kind.toUpperCase()} response on ${d.filings.find((f) => f.id === c.filing_id)?.form_type ?? "a filing"}${c.status === "open" ? "" : ` (${c.status})`}`,
+              }))}
+            parties={d.parties.map((p) => ({ value: p.id, label: p.label }))}
+            caseFacts={d.caseFacts}
           />
         )}
       </Card>
@@ -85,6 +93,16 @@ function Draft({ x, d, title }: { x: Row; d: MatterData; title: string }) {
           </>
         )}
       </p>
+      {x.inputs && (
+        <details className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+          <summary className="cursor-pointer text-xs font-medium text-slate-600">What staff gave the AI (case facts, D24)</summary>
+          <ul className="mt-2 list-disc space-y-0.5 pl-5">
+            {((x.inputs.issues ?? x.inputs.facts ?? []) as string[]).map((l, i) => (
+              <li key={i}>{l}</li>
+            ))}
+          </ul>
+        </details>
+      )}
       {x.review_note && <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">Attorney&apos;s note: {x.review_note}</p>}
 
       {editable ? (

@@ -66,13 +66,14 @@ async function Matter({
   const tab: TabId = TABS.some((t) => t.id === requested) ? (requested as TabId) : "overview";
   // One database call for the whole matter, alongside the sign-in check.
   const supabase = await createClient();
-  const [{ staff }, { data: page, error }, docRequests, documents, docTemplate] = await Promise.all([
+  const [{ staff }, { data: page, error }, docRequests, documents, docTemplate, caseFacts] = await Promise.all([
     requireStaff(),
     supabase.rpc("matter_page", { p_matter: id }, { get: true }),
     // Client documents (Increment 2). Empty until its migration is applied.
     supabase.from("doc_requests").select("*, items:doc_request_items(item_id)").eq("matter_id", id).order("created_at", { ascending: false }),
     supabase.from("documents").select("*").eq("matter_id", id).order("created_at"),
     supabase.from("message_templates").select("attorney_approved").eq("kind", "documents_request").maybeSingle(),
+    supabase.from("settings").select("value").eq("key", "drafting.case_facts").maybeSingle(),
   ]);
   if (error) throw new Error(error.message);
   if (!page) notFound();
@@ -113,6 +114,7 @@ async function Matter({
     docRequests: docRequests.data ?? [],
     documents: documents.data ?? [],
     docTemplateApproved: docTemplate.data?.attorney_approved === true,
+    caseFacts: caseFacts.data?.value === true,
     canDocs: staff?.role === "paralegal" || isAttorney(staff),
     back: `/matters/${id}?tab=${tab}`,
   };

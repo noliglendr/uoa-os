@@ -125,6 +125,26 @@ do $$ begin
   assert jsonb_array_length(public.dashboard_data() -> 'letter_drafts') = 1, 'one draft is waiting';
 end $$;
 
+-- Step B (decision #32): case facts need their own switch (D24), principal only.
+update public.draft_templates set attorney_approved = true where kind in ('response_outline', 'statement_draft');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000b');
+select pg_temp.expect_error($$select public.draft_start_check(pg_temp.m(), 'statement_draft')$$, '23514');
+select pg_temp.expect_error($$select public.create_draft(pg_temp.m(), 'statement_draft', null, 'I, [CLIENT NAME]', 'm', null, '{"facts": ["x"]}')$$, '23514');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000e');
+select pg_temp.expect_error($$update public.settings set value = 'true' where key = 'drafting.case_facts'$$, '42501');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
+update public.settings set value = 'true' where key = 'drafting.case_facts';
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000b');
+select public.draft_start_check(pg_temp.m(), 'statement_draft');
+-- An outline needs its RFE or NOID response; numbers are refused in what staff typed too.
+select pg_temp.expect_error($$select public.create_draft(pg_temp.m(), 'response_outline', null, 'Outline', 'm', null, '{"issues": ["x"]}')$$, '23514');
+select pg_temp.expect_error($$select public.create_draft(pg_temp.m(), 'statement_draft', null, 'I, [CLIENT NAME]', 'm', null, '{"facts": ["A-123456789"]}')$$, '23514');
+select public.create_draft(pg_temp.m(), 'statement_draft', null, 'I, [CLIENT NAME], state', 'm', null, '{"facts": ["Met the spouse in [YEAR]"]}');
+do $$ begin
+  assert (select inputs -> 'facts' ->> 0 from public.drafts where kind = 'statement_draft') = 'Met the spouse in [YEAR]', 'what staff typed is kept for the attorney';
+  assert (select status from public.drafts where kind = 'statement_draft') = 'pending_review', 'a statement waits for the attorney';
+end $$;
+
 -- Nothing is deleted.
 reset role;
 select pg_temp.expect_error($$delete from public.drafts$$, '42501');

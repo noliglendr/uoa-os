@@ -1,7 +1,9 @@
 // Unit tests for AI letter drafts. Run: npm test
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { draftFacts, draftPrompt, fillFirmBlanks, fillItemList, missingBlanks } from "./drafting.ts";
+import {
+  cleanLines, draftFacts, draftPrompt, fillFirmBlanks, fillItemList, fillOutlineBlanks, missingBlanks, outlineFacts, statementFacts, stepBPrompt,
+} from "./drafting.ts";
 
 const SECRET = "SECRET-VALUE";
 
@@ -52,4 +54,51 @@ test("UOA OS fills the date and attorney, never the client blanks", () => {
   const body = ["[DATE]", "Dear [CLIENT NAME]:", "[ATTORNEY NAME]"].join("\n");
   assert.equal(fillFirmBlanks(body, { today, attorney: "Attorney One" }), ["November 9, 2026", "Dear [CLIENT NAME]:", "Attorney One"].join("\n"));
   assert.equal(fillFirmBlanks(body, { today, attorney: null }), body.replace("[DATE]", "November 9, 2026"));
+});
+
+// Step B (decision #32)
+test("staff lines: list marks and empty lines removed, capped", () => {
+  assert.deepEqual(cleanLines("1. First issue\n\n- Second issue\n  * Third  \n"), ["First issue", "Second issue", "Third"]);
+  assert.equal(cleanLines(Array.from({ length: 30 }, (_, i) => `Line ${i}`).join("\n")).length, 20);
+});
+
+test("an outline sends the notice, form, issues and evidence only", () => {
+  const cycle = { id: SECRET, kind: "rfe", note: SECRET, filing_id: SECRET };
+  const filing = { id: SECRET, form_type: "I-140", forum: "uscis", ref_no: SECRET };
+  const evidence = [
+    { id: SECRET, label: "Tax returns", status: "received", note: SECRET },
+    { id: SECRET, label: "Old item", status: "needed", voided_at: "2026-11-01" },
+  ];
+  const facts = outlineFacts(cycle, filing, ["Ability to pay"], evidence);
+  const { system, user } = stepBPrompt("response_outline", "Template", facts);
+  assert.ok(!user.includes(SECRET) && !system.includes(SECRET));
+  assert.deepEqual(facts, {
+    notice: "Request for Evidence (RFE)",
+    form_type: "I-140",
+    forum: "uscis",
+    issues: ["Ability to pay"],
+    evidence: [{ item: "Tax returns", status: "received" }],
+  });
+  assert.match(system, /Do not write legal argument/);
+});
+
+test("a statement sends a role word, the purpose and the facts only", () => {
+  assert.deepEqual(statementFacts("Beneficiary", "relationship", ["Met in 2019"]), {
+    speaker: "Beneficiary",
+    purpose: "Statement about a relationship (e.g. a marriage), from someone who knows it",
+    facts: ["Met in 2019"],
+  });
+  assert.equal(statementFacts(null, "unknown", []).speaker, "the client");
+  assert.match(stepBPrompt("statement_draft", "T", {}).system, /Do not invent/);
+});
+
+test("UOA OS fills the outline's record blanks after the AI", () => {
+  const out = fillOutlineBlanks("[NOTICE TYPE] on [FORM TYPE], due [RESPONSE DUE]\n[EXHIBIT LIST]\n[ATTORNEY TO WRITE ARGUMENT]", {
+    notice: "Request for Evidence (RFE)",
+    formType: "I-140",
+    due: "Jan 5, 2027",
+    exhibits: ["Tax returns", "Payroll records"],
+  });
+  assert.equal(out, "Request for Evidence (RFE) on I-140, due Jan 5, 2027\nExhibit 1: Tax returns\nExhibit 2: Payroll records\n[ATTORNEY TO WRITE ARGUMENT]");
+  assert.match(fillOutlineBlanks("[RESPONSE DUE] [FORM TYPE]", { notice: "", formType: "free text", due: null, exhibits: [] }), /SET THE DEADLINE\] \[FORM TYPE\]/);
 });

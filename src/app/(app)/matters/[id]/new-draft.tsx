@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Icon } from "@/components/icons";
 import { Spinner } from "@/components/spinner";
 import { buttonClass, inputClass, letterBoxClass, letterRows } from "@/components/styles";
-import type { DraftKind } from "@/lib/drafting";
+import { CASE_FACT_KINDS, STATEMENT_PURPOSES, type DraftKind } from "@/lib/drafting";
 import { previewDraft, saveNewDraft, type DraftInput } from "../../actions";
 
 type Option = { value: string; label: string };
@@ -15,10 +15,31 @@ type Option = { value: string; label: string };
  * "Make draft" shows the letter in a window first. "Save draft" stores it and
  * sends it to the attorney; "Cancel" closes the window and nothing is saved.
  */
-export function NewDraft({ matterId, letters, filings }: { matterId: string; letters: Option[]; filings: Option[] }) {
+export function NewDraft({
+  matterId,
+  letters,
+  filings,
+  cycles = [],
+  parties = [],
+  caseFacts = false,
+}: {
+  matterId: string;
+  letters: Option[];
+  filings: Option[];
+  /** Step B: RFE/NOID responses on this matter. */
+  cycles?: Option[];
+  parties?: Option[];
+  /** D24: case facts may go to the AI. */
+  caseFacts?: boolean;
+}) {
   const router = useRouter();
   const [kind, setKind] = useState(letters[0]?.value ?? "");
   const [filingId, setFilingId] = useState("");
+  const [cycleId, setCycleId] = useState(cycles[0]?.value ?? "");
+  const [partyId, setPartyId] = useState("");
+  const [purpose, setPurpose] = useState("personal");
+  const [lines, setLines] = useState("");
+  const stepB = CASE_FACT_KINDS.includes(kind as DraftKind);
   const [preview, setPreview] = useState<{ text: string; model: string; input: DraftInput } | null>(null);
   const [edited, setEdited] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +64,9 @@ export function NewDraft({ matterId, letters, filings }: { matterId: string; let
   const make = () =>
     startMaking(async () => {
       setError(null);
-      const input: DraftInput = { matterId, kind: kind as DraftKind, filingId: filingId || null };
+      const input: DraftInput = stepB
+        ? { matterId, kind: kind as DraftKind, filingId: null, cycleId: cycleId || null, partyId: partyId || null, purpose, lines }
+        : { matterId, kind: kind as DraftKind, filingId: filingId || null };
       const result = await previewDraft(input);
       if ("error" in result) setError(result.error);
       else {
@@ -82,7 +105,7 @@ export function NewDraft({ matterId, letters, filings }: { matterId: string; let
             ))}
           </select>
         </label>
-        {filings.length > 0 && (
+        {!stepB && filings.length > 0 && (
           <label className="space-y-1">
             <span className="block text-xs font-medium text-slate-600">Filing (optional)</span>
             <select value={filingId} onChange={(e) => setFilingId(e.target.value)} className={inputClass}>
@@ -95,10 +118,81 @@ export function NewDraft({ matterId, letters, filings }: { matterId: string; let
             </select>
           </label>
         )}
-        <button type="button" onClick={make} disabled={making} className={buttonClass("primary")}>
-          {making ? <Spinner className="h-3.5 w-3.5" /> : <Icon name="plus" />} Make draft
-        </button>
+        {stepB && kind === "response_outline" && (
+          <label className="space-y-1">
+            <span className="block text-xs font-medium text-slate-600">Response</span>
+            <select value={cycleId} onChange={(e) => setCycleId(e.target.value)} className={inputClass}>
+              {cycles.length === 0 && <option value="">No RFE or NOID response yet</option>}
+              {cycles.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {stepB && kind === "statement_draft" && (
+          <>
+            <label className="space-y-1">
+              <span className="block text-xs font-medium text-slate-600">Who speaks</span>
+              <select value={partyId} onChange={(e) => setPartyId(e.target.value)} className={inputClass}>
+                <option value="">The client</option>
+                {parties.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-1">
+              <span className="block text-xs font-medium text-slate-600">Kind of statement</span>
+              <select value={purpose} onChange={(e) => setPurpose(e.target.value)} className={inputClass}>
+                {Object.entries(STATEMENT_PURPOSES).map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        )}
+        {!stepB && (
+          <button type="button" onClick={make} disabled={making} className={buttonClass("primary")}>
+            {making ? <Spinner className="h-3.5 w-3.5" /> : <Icon name="plus" />} Make draft
+          </button>
+        )}
       </div>
+      {stepB &&
+        (!caseFacts ? (
+          <p className="rounded-lg border border-gold-300 bg-gold-100/50 px-3 py-2 text-sm text-slate-700">
+            This draft sends case facts to the AI, so it needs “Case facts to the AI” on in Settings (D24, principal only). Made-up matters only until Frank decides D9.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            <label className="block space-y-1">
+              <span className="block text-xs font-medium text-slate-600">
+                {kind === "response_outline" ? "Issues in the notice, one per line" : "Facts, one per line, in order"}
+              </span>
+              <textarea
+                value={lines}
+                onChange={(e) => setLines(e.target.value)}
+                rows={6}
+                placeholder={
+                  kind === "response_outline"
+                    ? "Evidence of the petitioner's ability to pay the proffered wage\nEvidence that the beneficiary has the required degree"
+                    : "Met the spouse at a community event in spring of [YEAR]\nMarried in a civil ceremony; family attended"
+                }
+                className={`${inputClass} w-full`}
+              />
+              <span className="block text-xs text-slate-500">
+                Role words only (client, spouse, employer). Never names, A-numbers, receipt numbers, birth dates or addresses: write a blank such as [SPOUSE NAME] instead.
+              </span>
+            </label>
+            <button type="button" onClick={make} disabled={making || !lines.trim() || (kind === "response_outline" && !cycleId)} className={buttonClass("primary")}>
+              {making ? <Spinner className="h-3.5 w-3.5" /> : <Icon name="plus" />} Make draft
+            </button>
+          </div>
+        ))}
       {error && !preview && (
         <p role="alert" className="text-sm text-red-700">
           {error}

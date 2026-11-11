@@ -82,3 +82,21 @@ subtitle: "AI first drafts, attorney approval"
 | D21 | AI drafts on live matters | **Yes, after you confirm what the Texas and New York bar rules require**, including whether clients must be told or must consent. Step A only: sending real client data to the AI is a separate decision in the Step B plan. |
 
 **What I need for Step A:** one sample of each letter, with every personal detail removed, and your approval of each template once.
+
+# 7. Step B (built Nov 11, decision #32)
+
+| Draft | Staff give | The AI writes | UOA OS fills after the AI |
+|---|---|---|---|
+| RFE / NOID response outline | The RFE or NOID response, and the issues in the notice (one per line) | One section per issue: what was asked, evidence from the checklist (with status), [ATTORNEY TO WRITE ARGUMENT], gaps | Notice type, form, response due date, exhibit list |
+| Statement draft | Who speaks (a role, never a name), the kind of statement, the facts (one per line) | Short first-person paragraphs from those facts only; [ASK THE CLIENT: ...] where a fact is missing | Nothing: [DECLARANT NAME], [SIGNATURE], [SIGNING DATE] stay for people |
+
+**Safety:**
+
+- **Switch:** "Case facts to the AI" (`drafting.case_facts`, **D24**) is off by default, and only the principal can turn it on. Made-up matters only until Frank decides D9 and the vendor's no-training terms are signed.
+- **Personal data check:** what staff type is checked for A-numbers, receipt numbers and Social Security numbers, both before the AI call and in the database.
+- **No legal argument:** the AI writes no legal argument, citations or predictions.
+- **Attorney approval:** every draft waits for the attorney. What staff gave the AI is shown with the draft and kept in the record.
+
+**Tested:** unit tests (only the named fields reach the AI), database tests (switch, principal only, number check) and one trial against the real API with made-up facts.
+
+**Code:** `supabase/migrations/20261112000200_drafting_step_b.sql`; `src/lib/drafting.ts` (Step B section).

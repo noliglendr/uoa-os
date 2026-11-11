@@ -71,6 +71,7 @@ const UI: Record<string, { title: string; group: string; control: Control }> = {
   "documents.link_days": { title: "Client upload links work for", group: "Access and clients", control: { kind: "number", unit: "days" } },
   "documents.overdue_days": { title: "Flag a requested document on My work", group: "Access and clients", control: { kind: "number", unit: "days after its due date" } },
   "billing.invoice_drafts": { title: "Prepare invoice drafts at fee phases", group: "Billing", control: { kind: "bool", yes: "On", no: "Off" } },
+  "drafting.case_facts": { title: "Case facts to the AI (RFE/NOID outlines, statements)", group: "Access and clients", control: { kind: "bool", yes: "On (made-up matters only until D9)", no: "Off" } },
   "drafting.enabled": { title: "AI first drafts of letters", group: "Access and clients", control: { kind: "bool", yes: "On", no: "Off" } },
   "retention.years_after_close": { title: "Keep closed files for", group: "Records", control: { kind: "number", unit: "years" } },
 };

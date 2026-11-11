@@ -11,11 +11,14 @@ import type { PostgrestError } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireStaff } from "@/lib/session";
-import { formatDate, formatDateTime, parseMoney } from "@/lib/labels";
+import { PARTY_ROLES, formatDate, formatDateTime, label, parseMoney } from "@/lib/labels";
 import { newLink } from "@/lib/documents";
 import { computeDeadline, today, type DeadlineRule } from "@/lib/deadlines";
 import { generateDraft } from "@/lib/draft-ai";
-import { draftFacts, draftPrompt, fillFirmBlanks, fillItemList, missingBlanks, type DraftKind } from "@/lib/drafting";
+import {
+  CASE_FACT_KINDS, NOTICE_NAMES, cleanLines, draftFacts, draftPrompt, fillFirmBlanks, fillItemList, fillOutlineBlanks, missingBlanks,
+  outlineFacts, statementFacts, stepBPrompt, type DraftKind,
+} from "@/lib/drafting";
 
 type Client = Awaited<ReturnType<typeof createClient>>;
 
@@ -475,7 +478,18 @@ export async function recordSweepCheck(form: FormData) {
 // AI letter drafts (decisions #22, #23). The attorney approves; nothing is sent.
 // ---------------------------------------------------------------------------
 
-export type DraftInput = { matterId: string; kind: DraftKind; filingId: string | null };
+export type DraftInput = {
+  matterId: string;
+  kind: DraftKind;
+  filingId: string | null;
+  /** Step B: the response (RFE/NOID) the outline is for. */
+  cycleId?: string | null;
+  /** Step B: what staff typed: the notice's issues, or the statement's facts (one per line). */
+  lines?: string;
+  /** Step B statements: who speaks (a party, by role label) and why. */
+  partyId?: string | null;
+  purpose?: string;
+};
 export type DraftPreview = { text: string; model: string } | { error: string };
 
 function problem(e: unknown): string {
@@ -483,10 +497,12 @@ function problem(e: unknown): string {
 }
 
 /** Makes the letter for one matter. Saves nothing. */
-async function buildDraft(db: Client, { matterId, kind, filingId }: DraftInput) {
+async function buildDraft(db: Client, input: DraftInput) {
+  const { matterId, kind, filingId } = input;
   // Refused requests (role, setting off, template not approved, matter closed) stop here.
   const allowed = await db.rpc("draft_start_check", { p_matter: matterId, p_kind: kind });
   if (allowed.error) throw allowed.error;
+  if (CASE_FACT_KINDS.includes(kind)) return buildStepB(db, input);
 
   const [matter, template, filing, checklist] = await Promise.all([
     db.from("matters").select("*").eq("id", matterId).single(),
@@ -514,6 +530,71 @@ async function buildDraft(db: Client, { matterId, kind, filingId }: DraftInput) 
   return { text, model: result.model };
 }
 
+/** What staff typed for a Step B draft, as stored with it for the attorney. */
+function stepBInputs(input: DraftInput) {
+  const lines = cleanLines(input.lines ?? "");
+  return input.kind === "response_outline" ? { issues: lines } : { purpose: input.purpose ?? "personal", party_id: input.partyId ?? null, facts: lines };
+}
+
+/** Step B (decision #32): an RFE/NOID response outline or a statement draft. */
+async function buildStepB(db: Client, input: DraftInput) {
+  const kind = input.kind as "response_outline" | "statement_draft";
+  const lines = cleanLines(input.lines ?? "");
+  if (lines.length === 0) {
+    throw new Error(kind === "response_outline" ? "List the issues in the notice, one per line." : "Write the facts, one per line.");
+  }
+  // The same safety net as the database: no A-numbers, receipt or Social Security numbers to the AI.
+  if (/\bA-?\s?\d{8,9}\b|\b[A-Z]{3}\d{10}\b|\b\d{3}-\d{2}-\d{4}\b/.test(lines.join("\n"))) {
+    throw new Error("This looks like an A-number, receipt number or Social Security number. Leave client details out: use role words and blanks.");
+  }
+
+  const [template, matter] = await Promise.all([
+    db.from("draft_templates").select("body").eq("kind", kind).single(),
+    db.from("matters").select("attorney_id").eq("id", input.matterId).single(),
+  ]);
+  if (template.error) throw template.error;
+  if (matter.error) throw matter.error;
+  const body = template.data.body as string;
+
+  let facts: object;
+  let fill = (text: string) => text;
+  if (kind === "response_outline") {
+    if (!input.cycleId) throw new Error("Choose the RFE or NOID response.");
+    const cycle = await db.from("response_cycles").select("*").eq("id", input.cycleId).eq("matter_id", input.matterId).single();
+    if (cycle.error) throw new Error("That response is not on this matter.");
+    const [filing, evidence, deadline] = await Promise.all([
+      db.from("filings").select("form_type, forum").eq("id", cycle.data.filing_id).maybeSingle(),
+      db.from("checklist_items").select("label, status, voided_at, cycle_id").eq("matter_id", input.matterId).order("created_at"),
+      db.from("deadlines").select("due_date").eq("cycle_id", input.cycleId).eq("status", "open").order("due_date").limit(1).maybeSingle(),
+    ]);
+    // The response's own checklist first, then the matter's.
+    const items = (evidence.data ?? []).filter((i) => !i.voided_at).sort((a, b) => Number(b.cycle_id === input.cycleId) - Number(a.cycle_id === input.cycleId));
+    facts = outlineFacts(cycle.data, filing.data, lines, items);
+    fill = (text) =>
+      fillOutlineBlanks(text, {
+        notice: NOTICE_NAMES[cycle.data.kind] ?? "Agency notice",
+        formType: filing.data?.form_type ?? null,
+        due: deadline.data?.due_date ? formatDate(deadline.data.due_date) : null,
+        exhibits: items.filter((i) => i.cycle_id === input.cycleId || i.cycle_id === null).map((i) => i.label),
+      });
+  } else {
+    const party = input.partyId
+      ? await db.from("parties").select("party_role").eq("id", input.partyId).eq("matter_id", input.matterId).maybeSingle()
+      : { data: null };
+    facts = statementFacts(party.data ? label(PARTY_ROLES, party.data.party_role) : null, input.purpose ?? "personal", lines);
+  }
+
+  const { system, user } = stepBPrompt(kind, body, facts);
+  const result = await generateDraft(system, user, body);
+  const lost = missingBlanks(body, result.text);
+  if (lost.length) throw new Error(`The AI draft lost ${lost.join(", ")}. Try again.`);
+  const attorney = matter.data.attorney_id
+    ? await db.from("profiles").select("display_name").eq("id", matter.data.attorney_id).maybeSingle()
+    : { data: null };
+  const text = fillFirmBlanks(fill(result.text), { today: new Date(), attorney: (attorney.data?.display_name as string | undefined) ?? null });
+  return { text, model: result.model };
+}
+
 /** "Make draft": shows the letter in a window. Nothing is saved until "Save draft". */
 export async function previewDraft(input: DraftInput): Promise<DraftPreview> {
   try {
@@ -534,12 +615,15 @@ export async function saveNewDraft(input: DraftInput & { text: string; model: st
     // With no AI key the letter is made again here, so the first text stored is exactly
     // the template. An AI letter can't be made the same twice, so the one shown is kept.
     const draft = process.env.ANTHROPIC_API_KEY ? { text: input.text, model: input.model } : await buildDraft(db, input);
+    const stepB = CASE_FACT_KINDS.includes(input.kind);
     const created = await db.rpc("create_draft", {
       p_matter: input.matterId,
       p_kind: input.kind,
       p_filing: input.filingId,
       p_body: draft.text,
       p_model: draft.model,
+      p_cycle: stepB ? (input.cycleId ?? null) : null,
+      p_inputs: stepB ? stepBInputs(input) : null,
     });
     if (created.error) return { error: friendly(created.error) };
 

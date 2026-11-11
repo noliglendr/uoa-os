@@ -87,6 +87,8 @@ export type MatterData = {
   docRequests: Row[];
   documents: Row[];
   docTemplateApproved: boolean;
+  /** D24: Step B drafts may send case facts to the AI. */
+  caseFacts: boolean;
   /** Attorney, principal or paralegal: open, review and request files (D16). */
   canDocs: boolean;
   back: string;
