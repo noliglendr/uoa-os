@@ -6,7 +6,7 @@
 
 import { addDays, daysBetween, isBusinessDay, today as firmDate } from "./deadlines.ts";
 
-export type FollowupKind = "receipt" | "stalled" | "task";
+export type FollowupKind = "receipt" | "stalled" | "task" | "documents";
 
 export type Followup = {
   /** Stable id: one email per key per repeat period. */
@@ -95,6 +95,37 @@ export function overdueTaskFollowups(tasks: Task[], today: string): Followup[] {
       detail: `Due ${t.due_date} (${late} ${late === 1 ? "day" : "days"} late)`,
       roles: t.owner_role === "attorney" ? ["attorney", "principal"] : [t.owner_role],
       repeatDays: 1,
+    }];
+  });
+}
+
+type DocRequest = { due_date: string; items: { item: { id: string; matter_id: string; label: string; status: string; voided_at: string | null } | null }[] };
+
+/**
+ * Increment 2: a document still "requested" `overdueDays` after its request's
+ * due date (the latest due date when it was asked for more than once). Shown
+ * on "My work" only.
+ */
+export function documentFollowups(requests: DocRequest[], today: string, overdueDays: number): Followup[] {
+  const latest = new Map<string, { due: string; matterId: string; label: string }>();
+  for (const r of requests) {
+    for (const { item } of r.items) {
+      if (!item || item.voided_at || item.status !== "requested") continue;
+      const seen = latest.get(item.id);
+      if (!seen || r.due_date > seen.due) latest.set(item.id, { due: r.due_date, matterId: item.matter_id, label: item.label });
+    }
+  }
+  return [...latest].flatMap(([id, x]) => {
+    const late = daysBetween(x.due, today);
+    if (late < overdueDays) return [];
+    return [{
+      key: `documents:${id}`,
+      kind: "documents" as const,
+      matterId: x.matterId,
+      title: `Document overdue: ${x.label}`,
+      detail: `Due ${x.due} (${late} days late); the client follow-up is in the Client outbox`,
+      roles: ["paralegal", "attorney", "principal"],
+      repeatDays: 7,
     }];
   });
 }

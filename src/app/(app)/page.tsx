@@ -13,7 +13,7 @@ import { daysBetween, describeDue, today } from "@/lib/deadlines";
 import { GATE_LABELS, MESSAGE_KINDS, ROLE_LABELS, STAGES, formatDate, formatMoney, label, stageName } from "@/lib/labels";
 import { approveGate, completeTask, updateDeadline } from "./actions";
 import { buildSweep, type SweepData } from "./sweep/items";
-import { receiptFollowups, stalledFollowups } from "@/lib/followups";
+import { documentFollowups, receiptFollowups, stalledFollowups } from "@/lib/followups";
 
 // "My work": where am I needed, what is due, what is stuck.
 export default function Dashboard() {
@@ -49,13 +49,16 @@ const TONE_ORDER = { red: 0, amber: 1, blue: 2 } as const;
 async function DashboardContent() {
   // One database call for the whole screen, alongside the sign-in check.
   const supabase = await createClient();
-  const [{ staff }, { data, error }, { data: staffList }, { data: outboxRows }, { data: invoiceRows }] = await Promise.all([
+  const [{ staff }, { data, error }, { data: staffList }, { data: outboxRows }, { data: invoiceRows }, { data: docRows }, { data: overdueSetting }] = await Promise.all([
     requireStaff(),
     supabase.rpc("dashboard_data", {}, { get: true }),
     supabase.rpc("staff_page", {}, { get: true }),
     // Increment 4, Steps 2-4 (empty for roles that can't see them).
     supabase.from("client_messages").select("id, matter_id, kind").eq("status", "waiting").order("created_at"),
     supabase.from("invoices").select("id, matter_id, label, amount_cents").eq("status", "draft").order("created_at"),
+    // Increment 2: open document requests, for overdue documents.
+    supabase.from("doc_requests").select("due_date, items:doc_request_items(item:checklist_items(id, matter_id, label, status, voided_at))").eq("status", "open"),
+    supabase.from("settings").select("value").eq("key", "documents.overdue_days").maybeSingle(),
   ]);
   if (!staff) {
     return (
@@ -126,7 +129,8 @@ async function DashboardContent() {
     stalledDays,
   );
   const lateReceipts = receiptFollowups((data.awaiting_receipt ?? []) as Row[], now, Number(data.receipt_days ?? 1));
-  const followups = [...lateReceipts, ...stalled];
+  const lateDocuments = documentFollowups((docRows ?? []) as Row[], now, Number(overdueSetting?.value ?? 7));
+  const followups = [...lateReceipts, ...lateDocuments, ...stalled];
   const outbox = (outboxRows ?? []) as Row[];
 
   const myTasks = (data.tasks as Row[]).filter(
@@ -449,7 +453,7 @@ async function DashboardContent() {
               <ul className="divide-y divide-slate-100">
                 {followups.map((f) => (
                   <li key={f.key}>
-                    <Link href={`/matters/${f.matterId}${f.kind === "receipt" ? "?tab=filings" : ""}`} className="flex gap-3 px-4 py-2.5 hover:bg-slate-50">
+                    <Link href={`/matters/${f.matterId}${f.kind === "receipt" ? "?tab=filings" : f.kind === "documents" ? "?tab=evidence" : ""}`} className="flex gap-3 px-4 py-2.5 hover:bg-slate-50">
                       <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-red-500" aria-hidden />
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm text-slate-900">

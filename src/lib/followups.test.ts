@@ -1,7 +1,7 @@
 // Staff follow-ups (Increment 4, Step 1). Synthetic data only.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { addBusinessDays, dueToSend, overdueTaskFollowups, receiptFollowups, stalledFollowups } from "./followups.ts";
+import { addBusinessDays, documentFollowups, dueToSend, overdueTaskFollowups, receiptFollowups, stalledFollowups } from "./followups.ts";
 
 test("business days skip weekends and federal holidays", () => {
   assert.equal(addBusinessDays("2026-11-06", 1), "2026-11-09"); // Friday -> Monday
@@ -60,4 +60,17 @@ test("an item is emailed once per repeat period", () => {
   const sentYesterday = [{ key: receipt.key, sent_on: "2026-11-09" }, { key: stalled.key, sent_on: "2026-11-09" }];
   assert.deepEqual(dueToSend(items, sentYesterday, "2026-11-10").map((i) => i.kind), ["receipt"]); // stalled waits a week
   assert.equal(dueToSend([stalled], [{ key: stalled.key, sent_on: "2026-11-03" }], "2026-11-10").length, 1);
+});
+
+test("a requested document is overdue some days after its latest due date", () => {
+  const item = (status: string) => ({ item: { id: "i1", matter_id: "m1", label: "Passport copy", status, voided_at: null } });
+  const requests = [
+    { due_date: "2026-11-01", items: [item("requested")] },
+    { due_date: "2026-11-05", items: [item("requested")] }, // asked again: the later date counts
+  ];
+  assert.equal(documentFollowups(requests, "2026-11-11", 7).length, 0);
+  const [d] = documentFollowups(requests, "2026-11-12", 7);
+  assert.equal(d.key, "documents:i1");
+  assert.match(d.detail, /Due 2026-11-05 \(7 days late\)/);
+  assert.equal(documentFollowups([{ due_date: "2026-10-01", items: [item("received")] }], "2026-11-12", 7).length, 0);
 });

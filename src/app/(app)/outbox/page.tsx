@@ -56,7 +56,8 @@ async function Outbox() {
   ]);
   for (const r of [waiting, recent, templates]) if (r.error) throw new Error(r.error.message);
   const who = (names.data ?? {}) as Record<string, string>;
-  const off = (templates.data ?? []).filter((t) => !t.attorney_approved);
+  // The document request email is made on the matter page, not in the outbox.
+  const off = (templates.data ?? []).filter((t) => !t.attorney_approved && t.kind !== "documents_request");
   const waitingRows = waiting.data as Row[];
   const doneRows = recent.data as Row[];
 

@@ -83,6 +83,12 @@ export type MatterData = {
   draftingEnabled: boolean;
   /** Attorney, principal or paralegal. */
   canDraft: boolean;
+  /** Client documents (Increment 2). */
+  docRequests: Row[];
+  documents: Row[];
+  docTemplateApproved: boolean;
+  /** Attorney, principal or paralegal: open, review and request files (D16). */
+  canDocs: boolean;
   back: string;
 };
 

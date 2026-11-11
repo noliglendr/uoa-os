@@ -3,6 +3,10 @@ title: "Increment 2 Plan"
 subtitle: "Client document collection"
 ---
 
+# Status (Nov 11)
+
+**Built Nov 11** (decision #31), ahead of the dates below. Code: migration `20261112000100_documents.sql` (tests `supabase/tests/documents.test.sql`), client page `/upload/[token]`, staff card on each matter's Evidence tab. One change to D14: staff give the client the code by phone or text (UOA OS holds no client contact details). Made-up files only until D17.
+
 # 1. Summary
 
 **What it is:** the second item in your memo: clients send their documents to the firm through a secure page, every request and every upload is logged, and missing documents are flagged.

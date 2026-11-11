@@ -4,8 +4,9 @@ import { NextResponse, type NextRequest } from "next/server";
 
 // Pages anyone can open without a session.
 const PUBLIC_PATHS = ["/login"];
-// Called by the scheduler with no session; the route checks its own secret (CRON_SECRET).
-const CRON_PATHS = ["/api/cron"];
+// No staff session: the scheduler (checks CRON_SECRET) and the client upload
+// page (checks its own link, code and short session; Increment 2).
+const CRON_PATHS = ["/api/cron", "/upload"];
 // Pages a signed-in user can open before finishing the second factor (MFA).
 const MFA_PATHS = ["/mfa"];
 

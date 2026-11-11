@@ -6,11 +6,13 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import type { PostgrestError } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireStaff } from "@/lib/session";
-import { parseMoney } from "@/lib/labels";
+import { formatDate, formatDateTime, parseMoney } from "@/lib/labels";
+import { newLink } from "@/lib/documents";
 import { computeDeadline, today, type DeadlineRule } from "@/lib/deadlines";
 import { generateDraft } from "@/lib/draft-ai";
 import { draftFacts, draftPrompt, fillFirmBlanks, fillItemList, missingBlanks, type DraftKind } from "@/lib/drafting";
@@ -651,5 +653,60 @@ export async function addFeePhase(form: FormData) {
       p_label: text(form, "label"),
       p_amount_cents: money(form, "amount"),
     }),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Client documents (Increment 2; decision #31)
+// ---------------------------------------------------------------------------
+export type DocRequestResult = { error?: string; link?: string; code?: string; email?: string } | null;
+
+/**
+ * Creates a request and returns the upload link, the code and the email text
+ * ONCE. Only their hashes are stored, so they can't be shown again.
+ */
+export async function createDocRequest(_prev: DocRequestResult, form: FormData): Promise<DocRequestResult> {
+  const matterId = text(form, "matter_id");
+  const items = form.getAll("item").map(String);
+  const due = text(form, "due_date");
+  const link = newLink();
+  const db = await createClient();
+  const { error } = await db.rpc("create_doc_request", {
+    p_matter: matterId,
+    p_party: optional(form, "party_id"),
+    p_items: items,
+    p_due: due || null,
+    p_token_hash: link.tokenHash,
+    p_code_hash: link.codeHash,
+  });
+  if (error) return { error: friendly(error) };
+
+  const [{ data: template }, { data: matter }, { data: labels }, { data: request }] = await Promise.all([
+    db.from("message_templates").select("body").eq("kind", "documents_request").single(),
+    db.from("matters").select("attorney:profiles!matters_attorney_id_fkey(display_name)").eq("id", matterId).single(),
+    db.from("checklist_items").select("label").in("id", items).order("created_at"),
+    db.from("doc_requests").select("expires_at").eq("matter_id", matterId).order("created_at", { ascending: false }).limit(1).single(),
+  ]);
+  const host = (await headers()).get("host");
+  const origin = process.env.NEXT_PUBLIC_APP_URL || (host ? `https://${host}` : "");
+  const url = `${origin}/upload/${link.token}`;
+  const expires = request?.expires_at ? formatDateTime(request.expires_at) : "";
+  const attorney = (matter?.attorney as unknown as { display_name?: string } | null)?.display_name ?? null;
+  const email = fillFirmBlanks(String(template?.body ?? ""), { today: new Date(), attorney })
+    .replaceAll("[ITEM LIST]", (labels ?? []).map((l) => `- ${l.label}`).join("\n"))
+    .replaceAll("[UPLOAD LINK]", url)
+    .replaceAll("[LINK EXPIRES]", expires)
+    .replaceAll("[DUE DATE]", formatDate(due));
+  revalidatePath(`/matters/${matterId}`);
+  return { link: url, code: link.code, email };
+}
+
+export async function cancelDocRequest(form: FormData) {
+  await run(form, (db) => db.rpc("cancel_doc_request", { p_request: text(form, "request_id"), p_reason: text(form, "reason") }));
+}
+
+export async function reviewDocument(form: FormData) {
+  await run(form, (db) =>
+    db.rpc("review_document", { p_document: text(form, "document_id"), p_decision: text(form, "decision"), p_reason: optional(form, "reason") }),
   );
 }

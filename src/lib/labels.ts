@@ -182,6 +182,13 @@ export const MESSAGE_KINDS: Record<string, string> = {
   appointment_update: "Update: appointment scheduled",
   engagement_followup: "Follow-up: engagement not signed",
   documents_followup: "Follow-up: documents still needed",
+  documents_request: "Request: upload documents",
+};
+
+export const DOCUMENT_STATUS: Record<string, string> = {
+  received: "To review",
+  accepted: "Accepted",
+  rejected: "Rejected",
 };
 
 export const SENT_VIA: Record<string, string> = {

@@ -23,6 +23,7 @@ import {
   type MatterData,
 } from "./sections";
 import { DraftsCard } from "./drafts-card";
+import { DocumentsCard } from "./documents-card";
 import { MatterTabs } from "./matter-tabs";
 
 const TABS = [
@@ -65,7 +66,14 @@ async function Matter({
   const tab: TabId = TABS.some((t) => t.id === requested) ? (requested as TabId) : "overview";
   // One database call for the whole matter, alongside the sign-in check.
   const supabase = await createClient();
-  const [{ staff }, { data: page, error }] = await Promise.all([requireStaff(), supabase.rpc("matter_page", { p_matter: id }, { get: true })]);
+  const [{ staff }, { data: page, error }, docRequests, documents, docTemplate] = await Promise.all([
+    requireStaff(),
+    supabase.rpc("matter_page", { p_matter: id }, { get: true }),
+    // Client documents (Increment 2). Empty until its migration is applied.
+    supabase.from("doc_requests").select("*, items:doc_request_items(item_id)").eq("matter_id", id).order("created_at", { ascending: false }),
+    supabase.from("documents").select("*").eq("matter_id", id).order("created_at"),
+    supabase.from("message_templates").select("attorney_approved").eq("kind", "documents_request").maybeSingle(),
+  ]);
   if (error) throw new Error(error.message);
   if (!page) notFound();
   const matter = page.matter;
@@ -102,6 +110,10 @@ async function Matter({
     draftTemplates: page.draft_templates,
     draftingEnabled: page.drafting_enabled === true,
     canDraft: staff?.role === "paralegal" || isAttorney(staff),
+    docRequests: docRequests.data ?? [],
+    documents: documents.data ?? [],
+    docTemplateApproved: docTemplate.data?.attorney_approved === true,
+    canDocs: staff?.role === "paralegal" || isAttorney(staff),
     back: `/matters/${id}?tab=${tab}`,
   };
 
@@ -185,7 +197,12 @@ async function Matter({
                   <FilingsCard d={on("filings")} />
                 </>
               ),
-              evidence: <ChecklistCard d={on("evidence")} />,
+              evidence: (
+                <div className="space-y-5">
+                  <ChecklistCard d={on("evidence")} />
+                  <DocumentsCard d={on("evidence")} />
+                </div>
+              ),
               parties: (
                 <>
                   <PartiesCard d={on("parties")} />

@@ -32,7 +32,7 @@ create function pg_temp.m(p_code text) returns uuid language sql as $$ select id
 create function pg_temp.msg(p_kind text) returns uuid language sql as $$
   select id from public.client_messages where kind = p_kind and status = 'waiting' order by created_at desc, id limit 1 $$;
 create function pg_temp.inv() returns uuid language sql as $$
-  select id from public.invoices where matter_id = pg_temp.m('Matter G') order by created_at, id limit 1 $$;
+  select id from public.invoices where matter_id = pg_temp.m('Matter G') and label = 'Engagement fee' $$;
 
 grant execute on all functions in schema pg_temp to authenticated, service_role;
 

@@ -30,7 +30,7 @@ const GROUPS = {
   },
   message_templates: {
     title: "Client message templates (Client outbox)",
-    note: "UOA OS prepares these messages in the Client outbox: updates when a receipt is logged or a biometrics or interview appointment is set, and follow-ups when an engagement is not signed or documents are still missing. Nothing is prepared until the template is approved, and staff send every message themselves. UOA OS fills [DATE], [ATTORNEY NAME], [FORM TYPE], [APPOINTMENT TYPE], [APPOINTMENT DATE] and [ITEM LIST]. Decisions have no template: the attorney tells the client.",
+    note: "UOA OS prepares these messages in the Client outbox: updates when a receipt is logged or a biometrics or interview appointment is set, and follow-ups when an engagement is not signed or documents are still missing. Nothing is prepared until the template is approved, and staff send every message themselves. UOA OS fills [DATE], [ATTORNEY NAME], [FORM TYPE], [APPOINTMENT TYPE], [APPOINTMENT DATE] and [ITEM LIST]. The “Request: upload documents” email is made on a matter's Evidence tab, with [UPLOAD LINK], [LINK EXPIRES] and [DUE DATE] filled in. Decisions have no template: the attorney tells the client.",
   },
 } as const;
 
