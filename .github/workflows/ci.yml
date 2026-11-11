@@ -36,5 +36,6 @@ jobs:
       PGPASSWORD: postgres
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get install -y postgresql-client
+      # The runner image already has psql; install it only if missing (the Ubuntu mirrors can be down).
+      - run: command -v psql || (sudo apt-get update && sudo apt-get install -y postgresql-client)
       - run: sh supabase/tests/run.sh
