@@ -39,38 +39,50 @@ async function Dashboard() {
   const now = today();
   const months = lastMonths(now, 12);
   const since = windowStart(months);
-  const [matters, events, deadlines, filings, gates, messages, invoices, setting] = await Promise.all([
-    supabase.from("matters").select("id, created_at, status, matter_type"),
-    supabase
-      .from("event_log")
-      .select("matter_id, occurred_at, event_type, payload")
-      .in("event_type", ["matter.stage_changed", "matter.closed"])
-      .order("occurred_at")
-      .limit(10000),
-    supabase.from("deadlines").select("kind, status, due_date, completed_at, voided_at"),
-    supabase.from("filings").select("filed_at, receipt_logged_at, decision, voided_at"),
-    supabase.from("gates").select("matter_id, stage, cycle_id, approved_at"),
-    supabase.from("client_messages").select("status, created_at, sent_at"),
-    supabase.from("invoices").select("status, amount_cents, approved_at, sent_at, matter:matters(matter_type)"),
+  // Every row, in pages: Supabase returns at most 1,000 rows per request.
+  type Query = { range: (from: number, to: number) => PromiseLike<{ data: Row[] | null; error: { message: string } | null }> };
+  const all = async (query: () => Query): Promise<Row[]> => {
+    const rows: Row[] = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await query().range(from, from + 999);
+      if (error) throw new Error(error.message);
+      rows.push(...(data ?? []));
+      if ((data ?? []).length < 1000) return rows;
+    }
+  };
+  // Optional tables (a later migration not applied yet) read as empty.
+  const optional = (query: () => Query) => all(query).catch(() => [] as Row[]);
+  const [allMatters, events, deadlines, filings, gates, messages, invoices, setting] = await Promise.all([
+    all(() => supabase.from("matters").select("id, created_at, status, matter_type").order("id")),
+    all(() =>
+      supabase
+        .from("event_log")
+        .select("matter_id, occurred_at, event_type, payload")
+        .in("event_type", ["matter.stage_changed", "matter.closed"])
+        .order("id"),
+    ),
+    all(() => supabase.from("deadlines").select("kind, status, due_date, completed_at, voided_at").order("id")),
+    all(() => supabase.from("filings").select("filed_at, receipt_logged_at, decision, voided_at").order("id")),
+    all(() => supabase.from("gates").select("matter_id, stage, cycle_id, approved_at").order("id")),
+    optional(() => supabase.from("client_messages").select("status, created_at, sent_at").order("id")),
+    optional(() => supabase.from("invoices").select("status, amount_cents, approved_at, sent_at, matter:matters(matter_type)").order("id")),
     supabase.from("settings").select("value").eq("key", "followup.receipt_business_days").maybeSingle(),
   ]);
-  for (const r of [matters, events, deadlines, filings, gates]) if (r.error) throw new Error(r.error.message);
 
-  const allMatters = matters.data as Row[];
-  const stageEvents = (events.data as Row[])
+  const stageEvents = events
     .filter((e) => e.event_type === "matter.stage_changed")
     .map((e) => ({ matter_id: e.matter_id, occurred_at: e.occurred_at, from: Number(e.payload.from), to: Number(e.payload.to) }));
-  const closed = (events.data as Row[]).filter((e) => e.event_type === "matter.closed");
+  const closed = events.filter((e) => e.event_type === "matter.closed");
   const receiptDays = Number(setting.data?.value ?? 1);
 
   const opened = mattersByMonth(allMatters, closed, months);
   const stages = stageDurations(allMatters, stageEvents);
-  const dl = deadlineRecord(deadlines.data as Row[], now, since);
-  const rc = receiptRecord(filings.data as Row[], now, since, receiptDays);
-  const approvals = approvalWait(gates.data as Row[], stageEntries(allMatters, stageEvents));
-  const outbox = outboxRecord((messages.data ?? []) as Row[]);
-  const decisions = decisionCounts(filings.data as Row[]);
-  const money = revenue(((invoices.data ?? []) as Row[]).map((i) => ({ ...i, matter_type: i.matter?.matter_type })), months);
+  const dl = deadlineRecord(deadlines, now, since);
+  const rc = receiptRecord(filings, now, since, receiptDays);
+  const approvals = approvalWait(gates, stageEntries(allMatters, stageEvents));
+  const outbox = outboxRecord(messages);
+  const decisions = decisionCounts(filings);
+  const money = revenue(invoices.map((i) => ({ ...i, matter_type: i.matter?.matter_type })), months);
   const open = allMatters.filter((m) => m.status === "prospect" || m.status === "active");
   const thisMonth = money.byMonth[money.byMonth.length - 1].cents;
   const pct = (n: number | null) => (n === null ? "–" : `${n}%`);

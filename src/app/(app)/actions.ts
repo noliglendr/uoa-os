@@ -755,7 +755,7 @@ export async function createDocRequest(_prev: DocRequestResult, form: FormData):
   const due = text(form, "due_date");
   const link = newLink();
   const db = await createClient();
-  const { error } = await db.rpc("create_doc_request", {
+  const { data: requestId, error } = await db.rpc("create_doc_request", {
     p_matter: matterId,
     p_party: optional(form, "party_id"),
     p_items: items,
@@ -769,7 +769,7 @@ export async function createDocRequest(_prev: DocRequestResult, form: FormData):
     db.from("message_templates").select("body").eq("kind", "documents_request").single(),
     db.from("matters").select("attorney:profiles!matters_attorney_id_fkey(display_name)").eq("id", matterId).single(),
     db.from("checklist_items").select("label").in("id", items).order("created_at"),
-    db.from("doc_requests").select("expires_at").eq("matter_id", matterId).order("created_at", { ascending: false }).limit(1).single(),
+    db.from("doc_requests").select("expires_at").eq("id", requestId).single(),
   ]);
   const host = (await headers()).get("host");
   const origin = process.env.NEXT_PUBLIC_APP_URL || (host ? `https://${host}` : "");

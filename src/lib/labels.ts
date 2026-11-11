@@ -14,8 +14,6 @@ export const STAGES = [
   { n: 11, name: "Closure", owner: "Attorney approves" },
 ] as const;
 
-export const GATE_STAGES = [2, 3, 5, 6] as const;
-
 export const GATE_LABELS: Record<number, string> = {
   2: "Approve engagement (signed retainer, scope, fee phases)",
   3: "Approve strategy memo and deadline calendar",

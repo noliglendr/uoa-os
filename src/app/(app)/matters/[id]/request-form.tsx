@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Button } from "@/components/submit-button";
 import { inputClass } from "@/components/styles";
 import { createDocRequest, type DocRequestResult } from "../../actions";
@@ -19,8 +19,9 @@ export function RequestForm({
   defaultDue: string;
 }) {
   const [result, action] = useActionState<DocRequestResult, FormData>(createDocRequest, null);
+  const [done, setDone] = useState<string | null>(null);
 
-  if (result?.link) {
+  if (result?.link && result.link !== done) {
     return (
       <div className="space-y-3 rounded-lg border border-gold-300 bg-gold-100/40 p-4">
         <p className="text-sm font-semibold text-slate-900">Link created. Copy these now: they are not shown again.</p>
@@ -40,7 +41,12 @@ export function RequestForm({
             Link only: <span className="font-mono text-xs">{result.link}</span> <CopyButton text={result.link} />
           </li>
         </ol>
-        <p className="text-xs text-slate-500">Lost them? Cancel this link and create a new one.</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-slate-500">Lost them? Cancel this link and create a new one.</p>
+          <button type="button" onClick={() => setDone(result.link ?? null)} className="text-sm font-medium text-navy-700 hover:underline">
+            Done: make another request
+          </button>
+        </div>
       </div>
     );
   }
@@ -83,7 +89,7 @@ export function RequestForm({
           Create upload link
         </Button>
       </div>
-      {result?.error && (
+      {result?.error && !result.link && (
         <p role="alert" className="text-sm text-red-700">
           {result.error}
         </p>

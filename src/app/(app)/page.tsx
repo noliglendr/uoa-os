@@ -131,7 +131,8 @@ async function DashboardContent() {
   const lateReceipts = receiptFollowups((data.awaiting_receipt ?? []) as Row[], now, Number(data.receipt_days ?? 1));
   const lateDocuments = documentFollowups((docRows ?? []) as Row[], now, Number(overdueSetting?.value ?? 7));
   const followups = [...lateReceipts, ...lateDocuments, ...stalled];
-  const outbox = (outboxRows ?? []) as Row[];
+  // Only the people who send client messages see the outbox card.
+  const outbox = ["principal", "attorney", "paralegal", "docketing"].includes(staff.role) ? ((outboxRows ?? []) as Row[]) : [];
 
   const myTasks = (data.tasks as Row[]).filter(
     (t) => t.owner_role === staff.role || (staff.role === "principal" && t.owner_role === "attorney"),
