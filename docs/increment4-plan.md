@@ -16,9 +16,9 @@ subtitle: "Automation (memo capability 6)"
 | Step | What | Needs from Frank | Status |
 |---|---|---|---|
 | 1 | **Staff follow-ups**: late receipts, stalled matters, overdue tasks, in "My work" and one daily email per person | Nothing | Built Nov 10 (decision #28) |
-| 2 | **Client updates, prepared not sent**: receipt arrived, biometrics or interview scheduled. A message from an approved template waits in an Outbox; staff click Send | Approve templates; D11 stays off | Planned |
-| 3 | **Client follow-ups**: unsigned engagement, missing documents (after Increment 2), through the Outbox | Same as Step 2 | Planned |
-| 4 | **Invoices**: fee phases trigger an invoice draft; the attorney approves; the payment tool sends and collects | Fee schedule; billing tool (recommended: LawPay) | Planned |
+| 2 | **Client updates, prepared not sent**: receipt arrived, biometrics or interview scheduled. A message from an approved template waits in the Client outbox; staff send it and click Mark sent | Approve templates; D11 stays off | Built Nov 11 (decision #29) |
+| 3 | **Client follow-ups**: unsigned engagement, requested documents still missing, through the Client outbox | Same as Step 2 | Built Nov 11 (decision #29) |
+| 4 | **Invoices**: fee phases trigger an invoice draft; the attorney approves; the billing tool sends and collects | Fee amounts (D23); billing tool (D22, recommended: LawPay) | Built Nov 11 (decision #29); no billing tool connected |
 
 Steps 2–4 use synthetic data until D9 (real client data) is decided.
 
@@ -37,11 +37,34 @@ Steps 2–4 use synthetic data until D9 (real client data) is decided.
 - **Settings:** `followup.receipt_business_days` and `followup.emails` (On/Off) on the Settings page.
 - **Code:** rules in `src/lib/followups.ts` (unit tests in `followups.test.ts`); migration `20261110000100_followups.sql` (tests in `supabase/tests/followups.test.sql`).
 
-# 4. Decisions for Frank's final review
+# 4. Steps 2 and 3 in detail (Client outbox)
+
+| Message | Prepared when | Notes |
+|---|---|---|
+| Update: receipt arrived | A filing's receipt is logged | Form name only ("I-130"), never the receipt number |
+| Update: appointment scheduled | A biometrics or interview appointment is logged | A new date cancels the old message and prepares a new one. Hearings go to the attorney (redline 8), so they have none |
+| Follow-up: engagement not signed | A prospect waits `client_followup.engagement_days` (7) days at stage 2 | Again every 7 days while unsigned; cancelled when the attorney approves engagement |
+| Follow-up: documents still needed | Client items stay "requested" for `client_followup.documents_days` (7) days | Lists the items; cancelled when none is still requested |
+
+- **Nothing is prepared** from a template until the attorney approves it (Templates page). Changing the wording needs a new approval.
+- **UOA OS fills** [DATE], [ATTORNEY NAME], [FORM TYPE], [APPOINTMENT TYPE], [APPOINTMENT DATE], [ITEM LIST]. **[CLIENT NAME] stays blank** (R5): staff fill it in when they send the message from their own email or phone.
+- **Staff send it** (attorney, principal, paralegal, docketing): Copy text, send, choose how (email, phone, mail, portal, in person), Mark sent. Or "Don't send" with a reason. Both are logged and frozen.
+- **Follow-ups** are checked by the daily job on business days, or with "Check for follow-ups now" on the Client outbox page. Both run as the system, so they never make a stalled matter look active. A waiting message that is no longer needed (matter closed, engagement signed, documents received, appointment changed) is cancelled by UOA OS.
+- **Decisions are never in the outbox**: the attorney tells the client.
+
+# 5. Step 4 in detail (Invoices)
+
+- **Fee schedule** (Invoices page, D23): per matter type, which step reaches a fee phase: engagement signed, strategy approved, filing submitted, response filed, decision recorded, matter closed. Each phase has a name and an optional amount (empty: the attorney enters it on each invoice). Starter phases: "Engagement fee" and "Filing phase fee" for every matter type, with no amounts, until Frank supplies his fees. Only the principal changes it; every change is logged.
+- **Invoice draft**: prepared when the step is logged (setting `billing.invoice_drafts`, On). Matter code only, no client details.
+- **Attorney**: sets the amount, then Approve (logged). Or Void with a reason.
+- **Staff** (attorney, principal, administrator): enter the approved invoice in the billing tool, which sends it and collects payment, then record the tool's invoice number ("Record as entered"). Paralegals and docketing don't see invoices.
+- **Code:** migration `20261111000100_outbox_invoices.sql` (tests in `supabase/tests/outbox.test.sql`); pages `/outbox` and `/invoices`.
+
+# 6. Decisions for Frank's final review
 
 | # | Decision | Recommendation |
 |---|---|---|
-| D11 | Client updates send by themselves? | No for the pilot: Outbox plus Send button |
+| D11 | Client updates send by themselves? | No for the pilot: Client outbox, staff send and mark sent (built this way) |
 | D22 | Billing tool | LawPay (with QuickBooks if the firm already uses it) |
-| D23 | Fee schedule per matter type | Frank supplies it; stored as settings, changed without a developer |
-| D9 | Real client emails in UOA OS | Needed before Steps 2–4 use real clients |
+| D23 | Fee schedule per matter type | Frank supplies the amounts; the principal enters them on the Invoices page (no developer) |
+| D9 | Real client emails in UOA OS | Not needed for the outbox as built (staff add the client's name and send); needed only if UOA OS should send messages itself later |

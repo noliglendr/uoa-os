@@ -8,6 +8,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { PostgrestError } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireStaff } from "@/lib/session";
+import { parseMoney } from "@/lib/labels";
 import { computeDeadline, today, type DeadlineRule } from "@/lib/deadlines";
 import { generateDraft } from "@/lib/draft-ai";
 import { draftFacts, draftPrompt, fillFirmBlanks, fillItemList, missingBlanks, type DraftKind } from "@/lib/drafting";
@@ -564,12 +567,89 @@ export async function reviewDraft(form: FormData) {
   );
 }
 
+/** Letter templates (AI drafts) or client message templates (Outbox). */
+function templateTable(form: FormData) {
+  return text(form, "table") === "message_templates" ? "message_templates" : "draft_templates";
+}
+
 export async function saveTemplate(form: FormData) {
-  await run(form, (db) => db.from("draft_templates").update({ body: text(form, "body") }).eq("kind", text(form, "kind")));
+  await run(form, (db) => db.from(templateTable(form)).update({ body: text(form, "body") }).eq("kind", text(form, "kind")));
 }
 
 export async function approveTemplate(form: FormData) {
   await run(form, (db) =>
-    db.from("draft_templates").update({ attorney_approved: text(form, "value") === "true" }).eq("kind", text(form, "kind")),
+    db.from(templateTable(form)).update({ attorney_approved: text(form, "value") === "true" }).eq("kind", text(form, "kind")),
+  );
+}
+
+// Outbox (Increment 4, Steps 2-3): staff send each message themselves, then record it.
+export async function markMessageSent(form: FormData) {
+  await run(form, (db) => db.rpc("mark_message_sent", { p_message: text(form, "message_id"), p_via: text(form, "via") }));
+}
+
+export async function cancelMessage(form: FormData) {
+  await run(form, (db) => db.rpc("cancel_message", { p_message: text(form, "message_id"), p_reason: text(form, "reason") }));
+}
+
+/**
+ * Runs the daily client follow-up check now. It runs as the system (like the
+ * daily job), so it never counts as activity on a matter; staff only.
+ */
+export async function checkClientFollowups(form: FormData) {
+  await run(form, async () => {
+    const { staff } = await requireStaff();
+    if (!staff || !["principal", "attorney", "paralegal", "docketing"].includes(staff.role)) {
+      throw new Error("Only the attorney, principal, paralegal or docketing staff can do this.");
+    }
+    return createAdminClient().rpc("queue_client_followups");
+  });
+}
+
+// Invoices (Increment 4, Step 4). The attorney approves; the billing tool sends.
+function money(form: FormData, key: string): number | null {
+  const raw = text(form, key);
+  if (!raw) return null;
+  const cents = parseMoney(raw);
+  if (cents === null) throw new Error("Enter the amount in dollars, for example 1500 or 1,500.00.");
+  return cents;
+}
+
+export async function setInvoiceAmount(form: FormData) {
+  await run(form, (db) =>
+    db.rpc("set_invoice_amount", { p_invoice: text(form, "invoice_id"), p_amount_cents: money(form, "amount"), p_note: optional(form, "note") }),
+  );
+}
+
+export async function approveInvoice(form: FormData) {
+  await run(form, (db) => db.rpc("approve_invoice", { p_invoice: text(form, "invoice_id") }));
+}
+
+export async function recordInvoiceSent(form: FormData) {
+  await run(form, (db) => db.rpc("record_invoice_sent", { p_invoice: text(form, "invoice_id"), p_billing_ref: text(form, "billing_ref") }));
+}
+
+export async function voidInvoice(form: FormData) {
+  await run(form, (db) => db.rpc("void_invoice", { p_invoice: text(form, "invoice_id"), p_reason: text(form, "reason") }));
+}
+
+export async function saveFeePhase(form: FormData) {
+  await run(form, (db) =>
+    db.rpc("save_fee_phase", {
+      p_phase: text(form, "phase_id"),
+      p_label: text(form, "label"),
+      p_amount_cents: money(form, "amount"),
+      p_active: text(form, "active") === "true",
+    }),
+  );
+}
+
+export async function addFeePhase(form: FormData) {
+  await run(form, (db) =>
+    db.rpc("add_fee_phase", {
+      p_matter_type: text(form, "matter_type"),
+      p_trigger: text(form, "trigger"),
+      p_label: text(form, "label"),
+      p_amount_cents: money(form, "amount"),
+    }),
   );
 }

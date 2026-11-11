@@ -9,10 +9,11 @@
 //
 // Also sends one alert per matter whose engagement is not signed by its
 // engagement alert date (redline 3: early deadlines before engagement),
-// and the daily follow-up email to staff (followups.ts, Increment 4 Step 1).
+// the daily follow-up email to staff (followups.ts, Increment 4 Step 1), and
+// client follow-ups prepared in the Outbox (Increment 4 Step 3; never sent).
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { daysBetween, escalationDue, today } from "@/lib/deadlines";
+import { daysBetween, escalationDue, isBusinessDay, today } from "@/lib/deadlines";
 import { sendEmail } from "@/lib/email";
 import { stageName } from "@/lib/labels";
 import { runFollowups } from "./followups";
@@ -135,5 +136,13 @@ export async function GET(request: Request) {
     followups = { error: (e as Error).message };
   }
 
-  return Response.json({ date: now, reminders: results.length, results, engagement_alerts: engagementAlerts, followups });
+  // Client follow-ups (Increment 4, Step 3): prepared in the Outbox for staff
+  // to send. Business days only, like the staff follow-ups.
+  let clientFollowups: unknown = { skipped: "not a business day" };
+  if (isBusinessDay(now)) {
+    const { data: prepared, error: queueError } = await db.rpc("queue_client_followups");
+    clientFollowups = queueError ? { error: queueError.message } : prepared;
+  }
+
+  return Response.json({ date: now, reminders: results.length, results, engagement_alerts: engagementAlerts, followups, client_followups: clientFollowups });
 }

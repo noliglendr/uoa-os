@@ -17,7 +17,7 @@ Read this file first. It holds everything decided so far. The source documents a
 | Gate 0: Resilience baseline (monitoring, SSL, runbook) | Approved |
 | Gate 1: Process map | Client wrote the 11-stage **Matter Lifecycle Framework** (`docs/matter-lifecycle-framework.pdf`). Noli sent a redline (`docs/gate1-redline.md`). Client: "structural issues and proposed changes are useful." |
 | Gate 2: Proposal | **Approved Nov 3 by delegation**: Frank asked Noli to finalize without more referrals and review the final work. D1–D6 decided on the recommendations (decision log #6–#12). |
-| Gate 3: Build | Increment 1 (Matter Tracker with Deadline Control) built Nov 3–4; Frank's review of the finished work due **Fri Nov 6** (decision #13). Review guide: `docs/increment1-review.md`. AI drafting Step A built Nov 6, **off** until Frank decides D21 (decisions #22, #23; `docs/increment3-plan.md`). Automation Step 1 (staff follow-ups) built Nov 10 (decision #28; `docs/increment4-plan.md`). |
+| Gate 3: Build | Increment 1 (Matter Tracker with Deadline Control) built Nov 3–4; Frank's review of the finished work due **Fri Nov 6** (decision #13). Review guide: `docs/increment1-review.md`. AI drafting Step A built Nov 6, **off** until Frank decides D21 (decisions #22, #23; `docs/increment3-plan.md`). Automation Step 1 (staff follow-ups) built Nov 10 (decision #28); Steps 2–4 (Client outbox, client follow-ups, invoice drafts) built Nov 11 (decision #29); `docs/increment4-plan.md`. |
 
 ## 3. Non-negotiable rules
 

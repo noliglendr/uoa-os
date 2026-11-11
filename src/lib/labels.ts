@@ -175,3 +175,48 @@ export function formatDate(value: string | null | undefined): string {
     new Date(Date.UTC(y, m - 1, d)),
   );
 }
+
+// Outbox and invoices (Increment 4, Steps 2-4).
+export const MESSAGE_KINDS: Record<string, string> = {
+  receipt_update: "Update: receipt arrived",
+  appointment_update: "Update: appointment scheduled",
+  engagement_followup: "Follow-up: engagement not signed",
+  documents_followup: "Follow-up: documents still needed",
+};
+
+export const SENT_VIA: Record<string, string> = {
+  email: "Email",
+  phone: "Phone",
+  mail: "Mail",
+  portal: "Client portal",
+  in_person: "In person",
+};
+
+export const INVOICE_STATUS: Record<string, string> = {
+  draft: "Draft",
+  approved: "Approved",
+  sent: "In billing tool",
+  void: "Void",
+};
+
+export const FEE_TRIGGERS: Record<string, string> = {
+  engagement: "Engagement signed (stage 2)",
+  strategy: "Strategy approved (stage 3)",
+  filing: "Filing submitted (stage 6)",
+  response: "Response filed (RFE, NOID, motion)",
+  decision: "Decision recorded (stage 9)",
+  closure: "Matter closed (stage 11)",
+};
+
+/** Cents as US dollars: 150000 -> "$1,500.00". */
+export function formatMoney(cents: number | null | undefined): string {
+  if (cents == null) return "";
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
+}
+
+/** Dollars typed in a form ("1,500" or "1500.50") as cents, or null. */
+export function parseMoney(value: string): number | null {
+  const clean = value.replace(/[$,\s]/g, "");
+  if (!/^\d+(\.\d{1,2})?$/.test(clean)) return null;
+  return Math.round(Number(clean) * 100);
+}

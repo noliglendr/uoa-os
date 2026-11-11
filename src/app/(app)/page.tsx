@@ -10,7 +10,7 @@ import { buttonClass } from "@/components/styles";
 import { requireStaff, isAttorney } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { daysBetween, describeDue, today } from "@/lib/deadlines";
-import { GATE_LABELS, ROLE_LABELS, STAGES, formatDate, stageName } from "@/lib/labels";
+import { GATE_LABELS, MESSAGE_KINDS, ROLE_LABELS, STAGES, formatDate, formatMoney, label, stageName } from "@/lib/labels";
 import { approveGate, completeTask, updateDeadline } from "./actions";
 import { buildSweep, type SweepData } from "./sweep/items";
 import { receiptFollowups, stalledFollowups } from "@/lib/followups";
@@ -37,6 +37,8 @@ type WorkItem = {
   /** red = act today, amber = approval, blue = review */
   tone: "red" | "amber" | "blue";
   tab: string;
+  /** A page other than the matter (e.g. /invoices). */
+  href?: string;
   action?: Action;
   due?: string | null;
 };
@@ -47,10 +49,13 @@ const TONE_ORDER = { red: 0, amber: 1, blue: 2 } as const;
 async function DashboardContent() {
   // One database call for the whole screen, alongside the sign-in check.
   const supabase = await createClient();
-  const [{ staff }, { data, error }, { data: staffList }] = await Promise.all([
+  const [{ staff }, { data, error }, { data: staffList }, { data: outboxRows }, { data: invoiceRows }] = await Promise.all([
     requireStaff(),
     supabase.rpc("dashboard_data", {}, { get: true }),
     supabase.rpc("staff_page", {}, { get: true }),
+    // Increment 4, Steps 2-4 (empty for roles that can't see them).
+    supabase.from("client_messages").select("id, matter_id, kind").eq("status", "waiting").order("created_at"),
+    supabase.from("invoices").select("id, matter_id, label, amount_cents").eq("status", "draft").order("created_at"),
   ]);
   if (!staff) {
     return (
@@ -105,6 +110,9 @@ async function DashboardContent() {
   for (const f of data.untold as Row[]) {
     work.push({ matterId: f.matter_id, title: `Tell the client: ${f.form_type} ${f.decision}`, detail: "The attorney tells the client, not the system", tone: "red", tab: "filings" });
   }
+  for (const i of (invoiceRows ?? []) as Row[]) {
+    work.push({ matterId: i.matter_id, title: `Approve invoice: ${i.label}`, detail: i.amount_cents == null ? "Enter the amount" : formatMoney(i.amount_cents), tone: "blue", tab: "overview", href: "/invoices" });
+  }
   work.sort((a, b) => TONE_ORDER[a.tone] - TONE_ORDER[b.tone] || (a.due ?? "9999").localeCompare(b.due ?? "9999"));
 
   const upcoming = openDeadlines.filter((d) => daysBetween(now, d.due_date) <= 30);
@@ -119,6 +127,7 @@ async function DashboardContent() {
   );
   const lateReceipts = receiptFollowups((data.awaiting_receipt ?? []) as Row[], now, Number(data.receipt_days ?? 1));
   const followups = [...lateReceipts, ...stalled];
+  const outbox = (outboxRows ?? []) as Row[];
 
   const myTasks = (data.tasks as Row[]).filter(
     (t) => t.owner_role === staff.role || (staff.role === "principal" && t.owner_role === "attorney"),
@@ -201,7 +210,7 @@ async function DashboardContent() {
               <ul className="stagger divide-y divide-slate-100">
                 {work.map((w, i) => {
                   const m = byId.get(w.matterId);
-                  const href = `/matters/${w.matterId}?tab=${w.tab}`;
+                  const href = w.href ?? `/matters/${w.matterId}?tab=${w.tab}`;
                   return (
                     <li key={i} className="flex flex-col gap-3 px-4 py-3 transition-colors hover:bg-slate-50/70 sm:flex-row sm:items-center">
                       <div className="flex min-w-0 flex-1 gap-3">
@@ -448,6 +457,27 @@ async function DashboardContent() {
                         </span>
                         <span className="block text-xs text-slate-500">{f.detail}</span>
                       </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+
+          {outbox.length > 0 && (
+            <Card
+              title={`Client outbox (${outbox.length})`}
+              description="Prepared for clients. Staff send each one, then mark it sent."
+              actions={<Link href="/outbox" className="text-xs font-medium text-navy-700 hover:underline">Open outbox →</Link>}
+              flush
+            >
+              <ul className="divide-y divide-slate-100">
+                {outbox.slice(0, 6).map((x) => (
+                  <li key={x.id}>
+                    <Link href="/outbox" className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50">
+                      <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-navy-400" aria-hidden />
+                      <strong className="w-20 shrink-0 text-navy-800">{byId.get(x.matter_id)?.code}</strong>
+                      <span className="min-w-0 flex-1 truncate text-slate-900">{label(MESSAGE_KINDS, x.kind)}</span>
                     </Link>
                   </li>
                 ))}

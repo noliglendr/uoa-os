@@ -66,11 +66,14 @@ const UI: Record<string, { title: string; group: string; control: Control }> = {
     control: { kind: "choice", options: { off: "Off: staff prepare, the attorney submits", prepare_only: "Prepare only", submit_after_gate: "Submit after attorney approval" } },
   },
   client_auto_updates: { title: "Automatic updates to clients", group: "Access and clients", control: { kind: "bool", yes: "On", no: "Off" } },
+  "client_followup.engagement_days": { title: "Remind the client to sign the engagement after", group: "Access and clients", control: { kind: "number", unit: "days at stage 2" } },
+  "client_followup.documents_days": { title: "Remind the client about requested documents after", group: "Access and clients", control: { kind: "number", unit: "days" } },
+  "billing.invoice_drafts": { title: "Prepare invoice drafts at fee phases", group: "Billing", control: { kind: "bool", yes: "On", no: "Off" } },
   "drafting.enabled": { title: "AI first drafts of letters", group: "Access and clients", control: { kind: "bool", yes: "On", no: "Off" } },
   "retention.years_after_close": { title: "Keep closed files for", group: "Records", control: { kind: "number", unit: "years" } },
 };
 
-const GROUPS = ["Deadlines and reminders", "Matters", "Access and clients", "Records", "Other"];
+const GROUPS = ["Deadlines and reminders", "Matters", "Access and clients", "Billing", "Records", "Other"];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Setting = { key: string; value: any; description: string | null; decision: string | null; updated_by: string | null; updated_at: string };
