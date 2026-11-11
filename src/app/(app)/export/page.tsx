@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Card, Loading, NotForYourRole, PageHeader } from "@/components/ui";
 import { requireStaff } from "@/lib/session";
 import { Icon } from "@/components/icons";
 import { EXPORT_TABLES } from "./tables";
+
+export const metadata: Metadata = { title: "Export" };
 
 // Every table as CSV. Downloads are limited to the attorney and principal, and logged.
 export default function ExportPage() {

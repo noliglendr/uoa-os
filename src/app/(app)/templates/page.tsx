@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Badge, Button, Card, ErrorBanner, Hidden, Loading, PageHeader, letterBoxClass, letterRows } from "@/components/ui";
 import { ConfirmButton } from "@/components/confirm-button";
 import { isAttorney, requireStaff } from "@/lib/session";
 import { formatDateTime } from "@/lib/labels";
 import { approveTemplate, saveTemplate } from "../actions";
+
+export const metadata: Metadata = { title: "Templates" };
 
 // The attorney approves each letter template once. New wording needs a new approval.
 export default function TemplatesPage({ searchParams }: PageProps<"/templates">) {

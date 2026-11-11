@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Badge, Button, Card, Empty, ErrorBanner, Hidden, Loading, NotForYourRole, PageHeader, inputClass } from "@/components/ui";
@@ -8,6 +9,8 @@ import { addDays, today } from "@/lib/deadlines";
 import { MESSAGE_KINDS, SENT_VIA, formatDateTime, label } from "@/lib/labels";
 import { cancelMessage, checkClientFollowups, markMessageSent } from "../actions";
 import { CopyButton } from "../matters/[id]/copy-button";
+
+export const metadata: Metadata = { title: "Client outbox" };
 
 // Client outbox (Increment 4, Steps 2-3): UOA OS prepares client updates and
 // follow-ups from attorney-approved templates; staff send each one themselves

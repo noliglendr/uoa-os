@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Badge, Button, Card, Empty, ErrorBanner, Hidden, Loading, PageHeader, Table, Td, inputClass } from "@/components/ui";
@@ -7,6 +8,8 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate, stageName } from "@/lib/labels";
 import { recordSweepCheck } from "../actions";
 import { buildSweep, type SweepData } from "./items";
+
+export const metadata: Metadata = { title: "Weekly sweep" };
 
 // Weekly status sweep (redline 9): check every pending USCIS case online and
 // every EOIR or federal matter on the court's case information, once a week.

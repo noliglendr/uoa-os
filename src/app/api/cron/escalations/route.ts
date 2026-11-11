@@ -18,6 +18,9 @@ import { sendEmail } from "@/lib/email";
 import { stageName } from "@/lib/labels";
 import { runFollowups } from "./followups";
 
+// Emails are paced (Resend's rate limit), so a busy day can take a while.
+export const maxDuration = 300;
+
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
@@ -25,7 +28,8 @@ export async function GET(request: Request) {
   }
 
   const db = createAdminClient();
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  // Links in emails must be full addresses; fall back to this request's own site.
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin).replace(/\/$/, "");
   const now = today();
 
   const [{ data: settings }, { data: staff }, { data: deadlines, error }, { data: sent }] = await Promise.all([

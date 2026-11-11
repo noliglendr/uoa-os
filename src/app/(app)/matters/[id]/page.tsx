@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
@@ -25,6 +26,8 @@ import {
 import { DraftsCard } from "./drafts-card";
 import { DocumentsCard } from "./documents-card";
 import { MatterTabs } from "./matter-tabs";
+
+export const metadata: Metadata = { title: "Matter" };
 
 const TABS = [
   { id: "overview", label: "Overview" },

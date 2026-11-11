@@ -10,7 +10,7 @@ import { UploadItem } from "./upload-item";
 // The client's secure upload page (Increment 2; decision #31). Shows nothing
 // about the matter until the 6-digit code is entered.
 export const metadata: Metadata = {
-  title: "Upload documents · UOA Legal",
+  title: { absolute: "Upload documents · UOA Legal" },
   robots: { index: false, follow: false },
   referrer: "no-referrer",
 };

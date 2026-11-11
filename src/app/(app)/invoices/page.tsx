@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Badge, Button, Card, Empty, ErrorBanner, Hidden, Loading, NotForYourRole, PageHeader, inputClass } from "@/components/ui";
@@ -6,6 +7,8 @@ import { Icon } from "@/components/icons";
 import { isAttorney, requireStaff } from "@/lib/session";
 import { FEE_TRIGGERS, INVOICE_STATUS, MATTER_TYPES, formatDateTime, formatMoney, label } from "@/lib/labels";
 import { addFeePhase, approveInvoice, recordInvoiceSent, saveFeePhase, setInvoiceAmount, voidInvoice } from "../actions";
+
+export const metadata: Metadata = { title: "Invoices" };
 
 // Invoices (Increment 4, Step 4): reaching a fee phase prepares an invoice
 // draft; the attorney sets the amount and approves; staff enter it in the

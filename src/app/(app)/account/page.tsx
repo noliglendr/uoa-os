@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense, type ReactNode } from "react";
 import { Badge, Card, Loading, PageHeader } from "@/components/ui";
 import { Icon, type IconName } from "@/components/icons";
@@ -5,6 +6,8 @@ import { requireStaff } from "@/lib/session";
 import { ROLE_LABELS } from "@/lib/labels";
 import { signOut } from "../../actions";
 import { PasswordForm } from "./password-form";
+
+export const metadata: Metadata = { title: "Account" };
 
 // Your own account: who you are, your password, and sign-in safety.
 export default function AccountPage() {

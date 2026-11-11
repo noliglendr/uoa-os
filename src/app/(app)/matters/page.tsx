@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Badge, Card, Empty, Loading, PageHeader, Table, Td } from "@/components/ui";
@@ -6,6 +7,8 @@ import { inputClass } from "@/components/styles";
 import { requireStaff } from "@/lib/session";
 import { daysBetween, describeDue, today } from "@/lib/deadlines";
 import { MATTER_STATUS, MATTER_TYPES, formatDate, label, stageName } from "@/lib/labels";
+
+export const metadata: Metadata = { title: "Matters" };
 
 export default function MattersPage({ searchParams }: PageProps<"/matters">) {
   return (

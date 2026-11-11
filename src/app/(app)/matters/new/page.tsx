@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Button, Card, ErrorBanner, Field, PageHeader, inputClass } from "@/components/ui";
 import { MATTER_TYPES, PARTY_ROLES } from "@/lib/labels";
 import { createMatter } from "../../actions";
+
+export const metadata: Metadata = { title: "New matter" };
 
 // Stage 1 intake: matter type, urgency, parties for the conflict check.
 export default function NewMatterPage({ searchParams }: PageProps<"/matters/new">) {
@@ -53,8 +56,8 @@ export default function NewMatterPage({ searchParams }: PageProps<"/matters/new"
             <legend className="mb-1 text-sm font-medium text-slate-700">Parties (conflicts are checked for each)</legend>
             {[0, 1, 2].map((i) => (
               <div key={i} className="flex gap-2">
-                <input name={`party_label_${i}`} placeholder={`Client ${i + 1}`} required={i === 0} className={`${inputClass} flex-1`} />
-                <select name={`party_role_${i}`} className={inputClass} defaultValue={i === 1 ? "beneficiary" : "petitioner"}>
+                <input name={`party_label_${i}`} aria-label={`Party ${i + 1} role label`} placeholder={`Client ${i + 1}`} required={i === 0} className={`${inputClass} flex-1`} />
+                <select name={`party_role_${i}`} aria-label={`Party ${i + 1} role`} className={inputClass} defaultValue={i === 1 ? "beneficiary" : "petitioner"}>
                   {Object.entries(PARTY_ROLES).map(([v, l]) => (
                     <option key={v} value={v}>
                       {l}

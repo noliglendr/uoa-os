@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Badge, Button, Card, ErrorBanner, Hidden, Loading, NotForYourRole, PageHeader, inputClass } from "@/components/ui";
 import { canManage, requireStaff } from "@/lib/session";
@@ -5,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 
 import { formatDateTime } from "@/lib/labels";
 import { updateSetting } from "../actions";
+
+export const metadata: Metadata = { title: "Settings" };
 
 // Open decisions are settings. The principal or an administrator changes them; every change is logged.
 export default function SettingsPage({ searchParams }: PageProps<"/settings">) {
@@ -118,7 +121,7 @@ async function Settings() {
                     {principal ? (
                       <form key={JSON.stringify(s.value)} action={updateSetting} className="space-y-2">
                         <Hidden values={{ back: "/settings", key: s.key, kind: UI[s.key]?.control.kind ?? "json" }} />
-                        <Editor control={UI[s.key]?.control ?? { kind: "json" }} value={s.value} />
+                        <Editor control={UI[s.key]?.control ?? { kind: "json" }} value={s.value} label={UI[s.key]?.title ?? s.key} />
                         <Button variant="primary">Save</Button>
                       </form>
                     ) : (
@@ -136,11 +139,11 @@ async function Settings() {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function Editor({ control, value }: { control: Control; value: any }) {
+function Editor({ control, value, label }: { control: Control; value: any; label: string }) {
   switch (control.kind) {
     case "bool":
       return (
-        <select name="value" defaultValue={String(Boolean(value))} className={`${inputClass} w-full`}>
+        <select name="value" aria-label={label} defaultValue={String(Boolean(value))} className={`${inputClass} w-full`}>
           <option value="true">{control.yes}</option>
           <option value="false">{control.no}</option>
         </select>
@@ -148,20 +151,20 @@ function Editor({ control, value }: { control: Control; value: any }) {
     case "number":
       return (
         <label className="flex items-center gap-2 text-sm text-slate-600">
-          <input name="value" type="number" min={0} defaultValue={value} className={`${inputClass} w-24`} />
+          <input name="value" aria-label={label} type="number" min={0} defaultValue={value} className={`${inputClass} w-24`} />
           {control.unit}
         </label>
       );
     case "numbers":
       return (
         <label className="flex items-center gap-2 text-sm text-slate-600">
-          <input name="value" defaultValue={(value as number[]).join(", ")} className={`${inputClass} w-40`} />
+          <input name="value" aria-label={label} defaultValue={(value as number[]).join(", ")} className={`${inputClass} w-40`} />
           {control.unit}
         </label>
       );
     case "choice":
       return (
-        <select name="value" defaultValue={String(value)} className={`${inputClass} w-full`}>
+        <select name="value" aria-label={label} defaultValue={String(value)} className={`${inputClass} w-full`}>
           {Object.entries(control.options).map(([v, l]) => (
             <option key={v} value={v}>
               {l}
@@ -184,7 +187,7 @@ function Editor({ control, value }: { control: Control; value: any }) {
     case "preset": {
       const current = control.options.find((o) => same(o.value, value));
       return (
-        <select name="value" defaultValue={JSON.stringify(current?.value ?? value)} className={`${inputClass} w-full`}>
+        <select name="value" aria-label={label} defaultValue={JSON.stringify(current?.value ?? value)} className={`${inputClass} w-full`}>
           {control.options.map((o) => (
             <option key={o.label} value={JSON.stringify(o.value)}>
               {o.label}
@@ -195,7 +198,7 @@ function Editor({ control, value }: { control: Control; value: any }) {
       );
     }
     default:
-      return <input name="value" defaultValue={JSON.stringify(value)} className={`${inputClass} w-full font-mono text-xs`} />;
+      return <input name="value" aria-label={label} defaultValue={JSON.stringify(value)} className={`${inputClass} w-full font-mono text-xs`} />;
   }
 }
 

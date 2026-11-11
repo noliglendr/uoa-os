@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Badge, Button, Card, ErrorBanner, Hidden, Loading, PageHeader, Table, Td, inputClass } from "@/components/ui";
 import { isAttorney, requireStaff } from "@/lib/session";
@@ -5,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 
 import { formatDateTime } from "@/lib/labels";
 import { updateRuleNote, verifyRule } from "../actions";
+
+export const metadata: Metadata = { title: "Deadline rules" };
 
 // D7: the attorney verifies each deadline rule here. Unverified rules warn on every deadline.
 export default function RulesPage({ searchParams }: PageProps<"/rules">) {

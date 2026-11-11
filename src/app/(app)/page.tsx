@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Badge, Button, Card, Empty, HeroChip, Hidden, PageHeader, Stat, type Tone } from "@/components/ui";
@@ -14,6 +15,8 @@ import { GATE_LABELS, MESSAGE_KINDS, ROLE_LABELS, STAGES, formatDate, formatMone
 import { approveGate, completeTask, updateDeadline } from "./actions";
 import { buildSweep, type SweepData } from "./sweep/items";
 import { documentFollowups, receiptFollowups, stalledFollowups } from "@/lib/followups";
+
+export const metadata: Metadata = { title: "My work" };
 
 // "My work": where am I needed, what is due, what is stuck.
 export default function Dashboard() {

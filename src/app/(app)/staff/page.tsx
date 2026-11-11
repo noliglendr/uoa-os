@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Badge, Button, Card, ErrorBanner, Hidden, Loading, PageHeader, Table, Td, inputClass, NotForYourRole } from "@/components/ui";
 import { LEGAL_ROLES, canManage, requireStaff } from "@/lib/session";
@@ -7,6 +8,8 @@ import { updateStaff } from "./actions";
 import { AddStaffForm } from "./add-staff-form";
 import { AccessButton } from "./access-button";
 import { EditStaff } from "./edit-staff";
+
+export const metadata: Metadata = { title: "Staff" };
 
 // Staff and roles (D4). The principal or an administrator adds people, sets roles
 // and switches access off; only the principal handles the Principal and Attorney roles.
@@ -61,7 +64,7 @@ async function Staff() {
                   {manager && !self && (principal || !LEGAL_ROLES.includes(p.role)) ? (
                     <form action={updateStaff} className="flex gap-1">
                       <Hidden values={{ profile_id: p.id }} />
-                      <select key={p.role} name="role" defaultValue={p.role} className={inputClass}>
+                      <select key={p.role} name="role" aria-label={`Role of ${p.display_name}`} defaultValue={p.role} className={inputClass}>
                         {Object.entries(ROLE_LABELS)
                           .filter(([v]) => principal || !LEGAL_ROLES.includes(v))
                           .map(([v, l]) => (

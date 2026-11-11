@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Card, Loading, NotForYourRole, PageHeader, Stat, Table, Td } from "@/components/ui";
 import { requireStaff } from "@/lib/session";
@@ -7,6 +8,8 @@ import {
   approvalWait, deadlineRecord, decisionCounts, lastMonths, mattersByMonth, outboxRecord, receiptRecord, revenue,
   stageDurations, stageEntries, windowStart,
 } from "@/lib/kpis";
+
+export const metadata: Metadata = { title: "Firm dashboard" };
 
 // Firm dashboard (Phase 1 brief, capability 7; decision #30): revenue and KPIs
 // for the principal. "Where am I needed" stays on My work. Numbers only, no

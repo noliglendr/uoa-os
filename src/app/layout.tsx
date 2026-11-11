@@ -21,7 +21,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "UOA OS",
+  title: { default: "UOA OS", template: "%s · UOA OS" },
   description: "Matter tracking for UOA Legal",
 };
 
