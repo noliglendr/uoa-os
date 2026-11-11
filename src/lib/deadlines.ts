@@ -31,7 +31,18 @@ export type DeadlineInput = {
   mailed: boolean;
   /** Setting deadline.mailing_extension_days. */
   mailingExtensionDays: number;
+  /**
+   * The kind the notice itself implies: a biometrics, interview or hearing
+   * notice is always an appointment, even with no rule or another rule chosen.
+   */
+  kind?: DeadlineKind;
 };
+
+/** Notices whose date is an appointment (redline 10). */
+export const APPOINTMENT_NOTICES = ["biometrics", "interview", "hearing"];
+
+/** Prep task for an appointment whose rule gives none (redline 10: "e.g. 14 days before"). */
+export const DEFAULT_PREP_DAYS = 14;
 
 export type ComputedDeadline = {
   kind: DeadlineKind;
@@ -137,7 +148,7 @@ export function previousBusinessDay(date: string): string {
 export function computeDeadline(input: DeadlineInput): ComputedDeadline {
   const { rule, triggerDate, noticeDate, mailed, mailingExtensionDays } = input;
   const warnings: string[] = [];
-  const kind: DeadlineKind = rule?.kind ?? "response";
+  const kind: DeadlineKind = input.kind ?? rule?.kind ?? "response";
 
   if (!rule) {
     warnings.push("No rule: the date was entered by hand. The attorney must verify it.");
@@ -179,7 +190,7 @@ export function computeDeadline(input: DeadlineInput): ComputedDeadline {
   }
 
   const prepDate =
-    kind === "appointment" && rule?.prepDays ? previousBusinessDay(addDays(rawDueDate, -rule.prepDays)) : null;
+    kind === "appointment" ? previousBusinessDay(addDays(rawDueDate, -(rule?.prepDays ?? DEFAULT_PREP_DAYS))) : null;
 
   return { kind, rawDueDate, dueDate, mailingExtension: extension, prepDate, warnings };
 }

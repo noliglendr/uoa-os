@@ -70,7 +70,7 @@ async function Templates() {
             <div className="space-y-3">
               <form action={saveTemplate} className="space-y-2">
                 <Hidden values={{ back: "/templates", table, kind: t.kind }} />
-                <textarea name="body" required rows={letterRows(t.body)} defaultValue={t.body} aria-label={`${t.label} wording`} className={letterBoxClass} />
+                <textarea key={t.version} name="body" required rows={letterRows(t.body)} defaultValue={t.body} aria-label={`${t.label} wording`} className={letterBoxClass} />
                 <Button>Save wording</Button>
               </form>
               <form action={approveTemplate}>

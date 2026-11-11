@@ -21,12 +21,18 @@ export function UploadItem({ token, itemId }: { token: string; itemId: string })
     try {
       const start = await startUpload(token, itemId, type, file.size);
       if ("error" in start) return setState({ busy: false, message: start.error, error: true });
-      // No time limit here: a large file on a slow phone connection can take minutes.
+      // A time limit that fits a slow phone connection (25 KB/s, plus 2 minutes),
+      // so a stalled connection ends with a message instead of spinning forever.
+      const limitMs = 120_000 + Math.ceil(file.size / 25_000) * 1000;
       const storage = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
         auth: { persistSession: false, autoRefreshToken: false },
+        global: { fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(limitMs) }) },
       }).storage;
       const { error } = await storage.from("client-documents").uploadToSignedUrl(start.path, start.uploadToken, file, { contentType: type });
-      if (error) return setState({ busy: false, message: "The upload failed. Please check your connection and try again.", error: true });
+      if (error) {
+        const slow = /abort|timeout/i.test(`${error.name} ${error.message}`);
+        return setState({ busy: false, message: slow ? "The upload took too long. Please check your connection and try again." : "The upload failed. Please check your connection and try again.", error: true });
+      }
       const done = await finishUpload(token, itemId, start.path);
       if (done.error) return setState({ busy: false, message: done.error, error: true });
       setState({ busy: false, message: "Received. Thank you.", error: false });

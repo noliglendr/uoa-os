@@ -53,7 +53,7 @@ async function Rules() {
             <Td className="text-xs">
               <form action={updateRuleNote} className="flex gap-1">
                 <Hidden values={{ back: "/rules", code: r.code }} />
-                <input name="note" defaultValue={r.note ?? ""} className={`${inputClass} w-48 text-xs`} />
+                <input key={r.note ?? ""} name="note" defaultValue={r.note ?? ""} className={`${inputClass} w-48 text-xs`} />
                 <Button className="text-xs">Save</Button>
               </form>
             </Td>

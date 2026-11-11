@@ -86,7 +86,7 @@ async function Invoices() {
                 {head(i)}
                 {attorney ? (
                   <div className="flex flex-wrap items-end gap-3">
-                    <form action={setInvoiceAmount} className="flex flex-wrap items-end gap-2">
+                    <form key={`${i.amount_cents}|${i.note}`} action={setInvoiceAmount} className="flex flex-wrap items-end gap-2">
                       <Hidden values={{ back: "/invoices", invoice_id: i.id }} />
                       <label className="flex items-center gap-1 text-sm text-slate-600">
                         $
@@ -202,7 +202,7 @@ function FeeSchedule({ rows, principal }: { rows: Row[]; principal: boolean }) {
               .filter((r) => r.matter_type === type)
               .map((r) =>
                 principal ? (
-                  <form key={r.id} action={saveFeePhase} className="flex flex-wrap items-center gap-2 text-sm">
+                  <form key={`${r.id}|${r.label}|${r.amount_cents}|${r.active}`} action={saveFeePhase} className="flex flex-wrap items-center gap-2 text-sm">
                     <Hidden values={{ back: "/invoices", phase_id: r.id }} />
                     <span className="w-56 text-slate-600">{label(FEE_TRIGGERS, r.trigger)}</span>
                     <input name="label" required defaultValue={r.label} aria-label="Fee phase name" className={`${inputClass} w-44`} />

@@ -60,7 +60,7 @@ export function EditStaff({ id, name, email, role }: { id: string; name: string;
                 <label className="block space-y-1.5">
                   <span className="text-sm font-medium text-slate-700">Name</span>
                   <div className="flex gap-2">
-                    <input name="display_name" defaultValue={name} required className={`${inputClass} h-9 flex-1`} />
+                    <input key={name} name="display_name" defaultValue={name} required className={`${inputClass} h-9 flex-1`} />
                     <Button variant="primary" className="h-9">
                       Save
                     </Button>

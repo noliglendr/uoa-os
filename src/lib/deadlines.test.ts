@@ -162,3 +162,13 @@ test("countdown text and firm-time-zone today", () => {
   // 03:00 UTC on Nov 4 is still Nov 3 in Texas.
   assert.equal(today(new Date("2026-11-04T03:00:00Z")), "2026-11-03");
 });
+
+test("a biometrics, interview or hearing notice with no rule is still an appointment", () => {
+  // Found in the live test (Nov 11): a hearing logged with "No rule" became a response deadline.
+  const c = computeDeadline({ rule: null, triggerDate: "2026-11-11", noticeDate: "2026-12-12", mailed: false, mailingExtensionDays: 3, kind: "appointment" });
+  assert.equal(c.kind, "appointment");
+  assert.equal(c.dueDate, "2026-12-12"); // a Saturday: appointments never move
+  assert.equal(c.prepDate, "2026-11-27"); // 14 days before is Nov 28, a Saturday: the Friday before
+  // Without the notice's kind, the old behavior: a response deadline moved off the weekend.
+  assert.equal(computeDeadline({ rule: null, triggerDate: "2026-11-11", noticeDate: "2026-12-12", mailed: false, mailingExtensionDays: 3 }).kind, "response");
+});

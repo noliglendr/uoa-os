@@ -206,13 +206,13 @@ export function NewDraft({
             <div
               role="dialog"
               aria-modal="true"
-              aria-label={`New ${label.toLowerCase()}`}
+              aria-label={`New draft: ${label}`}
               onMouseDown={(event) => event.stopPropagation()}
               className="drop-in flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white text-left shadow-2xl"
             >
               <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
                 <div>
-                  <h2 className="text-base font-semibold text-slate-900">New {label.toLowerCase()}</h2>
+                  <h2 className="text-base font-semibold text-slate-900">New draft: {label}</h2>
                   <p className="text-xs text-slate-500">Not saved yet · {preview.model}</p>
                 </div>
                 <button type="button" onClick={close} aria-label="Close" className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700">

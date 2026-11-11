@@ -108,7 +108,7 @@ function Draft({ x, d, title }: { x: Row; d: MatterData; title: string }) {
       {editable ? (
         <form action={saveDraft} className="space-y-2">
           <Hidden values={{ back: d.back, draft_id: x.id }} />
-          <textarea name="body" required rows={letterRows(x.body)} defaultValue={x.body} aria-label={`${title} text`} className={letterBoxClass} />
+          <textarea key={x.updated_at} name="body" required rows={letterRows(x.body)} defaultValue={x.body} aria-label={`${title} text`} className={letterBoxClass} />
           <Button>Save changes</Button>
         </form>
       ) : (

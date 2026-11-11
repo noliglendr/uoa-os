@@ -61,7 +61,7 @@ async function Staff() {
                   {manager && !self && (principal || !LEGAL_ROLES.includes(p.role)) ? (
                     <form action={updateStaff} className="flex gap-1">
                       <Hidden values={{ profile_id: p.id }} />
-                      <select name="role" defaultValue={p.role} className={inputClass}>
+                      <select key={p.role} name="role" defaultValue={p.role} className={inputClass}>
                         {Object.entries(ROLE_LABELS)
                           .filter(([v]) => principal || !LEGAL_ROLES.includes(v))
                           .map(([v, l]) => (

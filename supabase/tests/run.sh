@@ -19,6 +19,7 @@ run -f "$DIR/drafts.test.sql" | grep PASSED
 run -f "$DIR/followups.test.sql" | grep PASSED
 run -f "$DIR/outbox.test.sql" | grep PASSED
 run -f "$DIR/documents.test.sql" | grep PASSED
+run -f "$DIR/e2e.test.sql" | grep PASSED
 run <<SQL
 begin;
 insert into auth.users (id) values ('00000000-0000-0000-0000-00000000000a');

@@ -116,7 +116,7 @@ async function Settings() {
                   </div>
                   <div>
                     {principal ? (
-                      <form action={updateSetting} className="space-y-2">
+                      <form key={JSON.stringify(s.value)} action={updateSetting} className="space-y-2">
                         <Hidden values={{ back: "/settings", key: s.key, kind: UI[s.key]?.control.kind ?? "json" }} />
                         <Editor control={UI[s.key]?.control ?? { kind: "json" }} value={s.value} />
                         <Button variant="primary">Save</Button>

@@ -770,7 +770,7 @@ function ChecklistList({ d, items, cycleId, editable }: { d: MatterData; items: 
               </Td>
               <Td className={d.canWork ? "" : "hidden"}>
                 <Inline action={setChecklistStatus} values={{ back: d.back, item_id: i.id }}>
-                  <select name="status" defaultValue={i.status} className={inputClass}>
+                  <select key={i.status} name="status" defaultValue={i.status} className={inputClass}>
                     {Object.entries(CHECKLIST_STATUS)
                       .filter(([v]) => d.attorney || !i.third_party_draft || v !== "approved")
                       .map(([v, l]) => (

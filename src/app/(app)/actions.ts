@@ -13,7 +13,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireStaff } from "@/lib/session";
 import { PARTY_ROLES, formatDate, formatDateTime, label, parseMoney } from "@/lib/labels";
 import { newLink } from "@/lib/documents";
-import { computeDeadline, today, type DeadlineRule } from "@/lib/deadlines";
+import { APPOINTMENT_NOTICES, computeDeadline, today, type DeadlineRule } from "@/lib/deadlines";
 import { generateDraft } from "@/lib/draft-ai";
 import {
   CASE_FACT_KINDS, NOTICE_NAMES, cleanLines, draftFacts, draftPrompt, fillFirmBlanks, fillItemList, fillOutlineBlanks, missingBlanks,
@@ -95,6 +95,8 @@ async function deadlineFromForm(db: Client, form: FormData, defaultTrigger: stri
     noticeDate: optional(form, "notice_due_date"),
     mailed: form.get("mailed") === "on",
     mailingExtensionDays: await mailingExtensionDays(db),
+    // A biometrics, interview or hearing notice is an appointment, whatever rule was picked.
+    kind: APPOINTMENT_NOTICES.includes(text(form, "notice_type")) ? "appointment" : undefined,
   });
   return {
     rule_code: rule?.code ?? null,
@@ -564,7 +566,7 @@ async function buildStepB(db: Client, input: DraftInput) {
     if (cycle.error) throw new Error("That response is not on this matter.");
     const [filing, evidence, deadline] = await Promise.all([
       db.from("filings").select("form_type, forum").eq("id", cycle.data.filing_id).maybeSingle(),
-      db.from("checklist_items").select("label, status, voided_at, cycle_id").eq("matter_id", input.matterId).order("created_at"),
+      db.from("checklist_items").select("label, owner, status, voided_at, cycle_id").eq("matter_id", input.matterId).order("created_at"),
       db.from("deadlines").select("due_date").eq("cycle_id", input.cycleId).eq("status", "open").order("due_date").limit(1).maybeSingle(),
     ]);
     // The response's own checklist first, then the matter's.
@@ -575,7 +577,9 @@ async function buildStepB(db: Client, input: DraftInput) {
         notice: NOTICE_NAMES[cycle.data.kind] ?? "Agency notice",
         formType: filing.data?.form_type ?? null,
         due: deadline.data?.due_date ? formatDate(deadline.data.due_date) : null,
-        exhibits: items.filter((i) => i.cycle_id === input.cycleId || i.cycle_id === null).map((i) => i.label),
+        // Exhibits: this response's new evidence from the client or third parties. The
+        // original filing's evidence is already on file, and firm items (the brief) are the response itself.
+        exhibits: items.filter((i) => i.cycle_id === input.cycleId && i.owner !== "firm").map((i) => i.label),
       });
   } else {
     const party = input.partyId
