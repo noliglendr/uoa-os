@@ -9,6 +9,7 @@ export const EXPORT_TABLES = [
   { table: "notices", label: "Notices", order: "logged_at" },
   { table: "deadlines", label: "Deadlines", order: "due_date" },
   { table: "escalations", label: "Reminders sent", order: "id" },
+  { table: "followups_sent", label: "Follow-up emails sent", order: "id" },
   { table: "tasks", label: "Tasks", order: "created_at" },
   { table: "checklist_items", label: "Evidence checklist", order: "created_at" },
   { table: "drafts", label: "Letter drafts", order: "created_at" },

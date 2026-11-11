@@ -8,12 +8,14 @@
 // escalation.recipients setting (D12).
 //
 // Also sends one alert per matter whose engagement is not signed by its
-// engagement alert date (redline 3: early deadlines before engagement).
+// engagement alert date (redline 3: early deadlines before engagement),
+// and the daily follow-up email to staff (followups.ts, Increment 4 Step 1).
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { daysBetween, escalationDue, today } from "@/lib/deadlines";
 import { sendEmail } from "@/lib/email";
 import { stageName } from "@/lib/labels";
+import { runFollowups } from "./followups";
 
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
@@ -125,5 +127,13 @@ export async function GET(request: Request) {
     if (!result.failed) engagementAlerts.push(m.code);
   }
 
-  return Response.json({ date: now, reminders: results.length, results, engagement_alerts: engagementAlerts });
+  // A follow-up problem must not hide the deadline reminders already sent.
+  let followups: unknown;
+  try {
+    followups = await runFollowups(db, emailOf, appUrl, now);
+  } catch (e) {
+    followups = { error: (e as Error).message };
+  }
+
+  return Response.json({ date: now, reminders: results.length, results, engagement_alerts: engagementAlerts, followups });
 }

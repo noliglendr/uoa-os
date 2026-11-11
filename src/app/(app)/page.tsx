@@ -13,6 +13,7 @@ import { daysBetween, describeDue, today } from "@/lib/deadlines";
 import { GATE_LABELS, ROLE_LABELS, STAGES, formatDate, stageName } from "@/lib/labels";
 import { approveGate, completeTask, updateDeadline } from "./actions";
 import { buildSweep, type SweepData } from "./sweep/items";
+import { receiptFollowups, stalledFollowups } from "@/lib/followups";
 
 // "My work": where am I needed, what is due, what is stuck.
 export default function Dashboard() {
@@ -110,9 +111,14 @@ async function DashboardContent() {
   const dueThisWeek = openDeadlines.filter((d) => daysBetween(now, d.due_date) <= 7).length;
 
   const stalledDays = Number(data.stalled_days ?? 14);
-  const stalled = open
-    .map((m) => ({ m, last: (lastActivity[m.id] ?? m.stage_changed_at) as string }))
-    .filter(({ last }) => daysBetween(last.slice(0, 10), now) >= stalledDays);
+  // Follow-ups (Increment 4, Step 1): the same rules as the daily follow-up email.
+  const stalled = stalledFollowups(
+    open.map((m) => ({ id: m.id, last: (lastActivity[m.id] ?? m.stage_changed_at) as string })),
+    now,
+    stalledDays,
+  );
+  const lateReceipts = receiptFollowups((data.awaiting_receipt ?? []) as Row[], now, Number(data.receipt_days ?? 1));
+  const followups = [...lateReceipts, ...stalled];
 
   const myTasks = (data.tasks as Row[]).filter(
     (t) => t.owner_role === staff.role || (staff.role === "principal" && t.owner_role === "attorney"),
@@ -254,7 +260,10 @@ async function DashboardContent() {
               <ul className="divide-y divide-slate-100">
                 {myTasks.map((t) => (
                   <li key={t.id} className="flex items-center gap-3 px-4 py-2.5">
-                    <span className="w-20 shrink-0 text-xs text-slate-500">{t.due_date ? formatDate(t.due_date) : ""}</span>
+                    <span className={`w-20 shrink-0 text-xs ${t.due_date && t.due_date < now ? "font-semibold text-red-700" : "text-slate-500"}`}>
+                      {t.due_date ? formatDate(t.due_date) : ""}
+                      {t.due_date && t.due_date < now && <span className="block">Overdue</span>}
+                    </span>
                     <Link href={`/matters/${t.matter_id}`} className="min-w-0 flex-1 text-sm hover:underline">
                       <strong className="text-navy-800">{byId.get(t.matter_id)?.code}</strong> {t.title}
                     </Link>
@@ -426,6 +435,26 @@ async function DashboardContent() {
         </div>
 
         <div className="space-y-5">
+          {followups.length > 0 && (
+            <Card title={`Follow-ups (${followups.length})`} description="Late or stuck. The daily follow-up email lists these too." flush>
+              <ul className="divide-y divide-slate-100">
+                {followups.map((f) => (
+                  <li key={f.key}>
+                    <Link href={`/matters/${f.matterId}${f.kind === "receipt" ? "?tab=filings" : ""}`} className="flex gap-3 px-4 py-2.5 hover:bg-slate-50">
+                      <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-red-500" aria-hidden />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm text-slate-900">
+                          <strong className="text-navy-800">{byId.get(f.matterId)?.code}</strong> {f.title}
+                        </span>
+                        <span className="block text-xs text-slate-500">{f.detail}</span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+
           <Card title="Next 30 days" flush>
             {upcoming.length === 0 ? (
               <div className="p-4">
@@ -492,22 +521,6 @@ async function DashboardContent() {
             <SweepMeter done={sweep.items.length - sweep.due.length} total={sweep.items.length} />
           </Card>
 
-          {stalled.length > 0 && (
-            <Card title={`Stalled (${stalledDays}+ days quiet)`}>
-              <ul className="space-y-1.5 text-sm">
-                {stalled.map(({ m, last }) => (
-                  <li key={m.id}>
-                    <Link href={`/matters/${m.id}`} className="font-semibold text-navy-800 hover:underline">
-                      {m.code}
-                    </Link>{" "}
-                    <span className="text-slate-500">
-                      stage {m.stage}, last change {formatDate(last)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          )}
         </div>
       </div>
     </>
