@@ -104,21 +104,28 @@ export function deadlineRecord(deadlines: Deadline[], today: string, since: stri
 // ---------------------------------------------------------------------------
 type Filing = { filed_at: string | null; receipt_logged_at: string | null; decision?: string | null; voided_at?: string | null };
 
-export function receiptRecord(filings: Filing[], today: string, since: string, businessDays: number) {
+type ReceiptNotice = { received_on: string; logged_at: string; voided_at?: string | null };
+
+/**
+ * Stage 7: a receipt is logged within 1 business day of the day it arrived
+ * (from the receipt notices). "Waiting" counts filings with no receipt yet
+ * after `waitDays` business days (receipts usually take 2-4 weeks).
+ */
+export function receiptRecord(notices: ReceiptNotice[], filings: Filing[], today: string, since: string, waitDays: number) {
   let onTime = 0;
   let late = 0;
   let waiting = 0;
-  for (const f of filings) {
-    if (!f.filed_at || f.voided_at) continue;
-    const filed = dateOf(f.filed_at);
-    if (filed < since) continue;
-    const due = addBusinessDays(filed, businessDays);
-    if (f.receipt_logged_at) {
-      if (dateOf(f.receipt_logged_at) <= due) onTime++;
-      else late++;
-    } else if (today > due) waiting++;
+  for (const n of notices) {
+    if (n.voided_at || n.received_on < since) continue;
+    if (dateOf(n.logged_at) <= addBusinessDays(n.received_on, 1)) onTime++;
+    else late++;
   }
-  const counted = onTime + late + waiting;
+  for (const f of filings) {
+    if (!f.filed_at || f.voided_at || f.receipt_logged_at) continue;
+    const filed = dateOf(f.filed_at);
+    if (filed >= since && today > addBusinessDays(filed, waitDays)) waiting++;
+  }
+  const counted = onTime + late;
   return { onTime, late, waiting, counted, rate: percent(onTime, counted) };
 }
 

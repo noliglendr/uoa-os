@@ -41,7 +41,7 @@ const FORM_NAME = /^[A-Z]{1,4}-\d{1,4}[A-Z]?$/;
 
 type Filing = { id: string; matter_id: string; form_type: string; filed_at: string };
 
-/** Stage 7: a filed filing needs its receipt (or proof) logged within N business days. */
+/** Stage 7: a filed filing still has no receipt N business days after filing (receipts take 2-4 weeks). */
 export function receiptFollowups(filings: Filing[], today: string, businessDays: number): Followup[] {
   return filings.flatMap((f) => {
     const filed = dateOf(f.filed_at);
@@ -51,8 +51,8 @@ export function receiptFollowups(filings: Filing[], today: string, businessDays:
       key: `receipt:${f.id}`,
       kind: "receipt" as const,
       matterId: f.matter_id,
-      title: `Receipt not logged: ${FORM_NAME.test(f.form_type) ? f.form_type : "filing"}`,
-      detail: `Filed ${filed}; the receipt or proof was due by ${due}`,
+      title: `No receipt yet: ${FORM_NAME.test(f.form_type) ? f.form_type : "filing"}`,
+      detail: `Filed ${filed}; a receipt usually arrives by ${due}. Check the case online, then log the receipt`,
       roles: ["docketing", "paralegal", "principal"],
       repeatDays: 1,
     }];

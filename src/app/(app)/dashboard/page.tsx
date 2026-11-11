@@ -52,7 +52,7 @@ async function Dashboard() {
   };
   // Optional tables (a later migration not applied yet) read as empty.
   const optional = (query: () => Query) => all(query).catch(() => [] as Row[]);
-  const [allMatters, events, deadlines, filings, gates, messages, invoices, setting] = await Promise.all([
+  const [allMatters, events, deadlines, filings, gates, messages, invoices, setting, receipts] = await Promise.all([
     all(() => supabase.from("matters").select("id, created_at, status, matter_type").order("id")),
     all(() =>
       supabase
@@ -67,18 +67,19 @@ async function Dashboard() {
     optional(() => supabase.from("client_messages").select("status, created_at, sent_at").order("id")),
     optional(() => supabase.from("invoices").select("status, amount_cents, approved_at, sent_at, matter:matters(matter_type)").order("id")),
     supabase.from("settings").select("value").eq("key", "followup.receipt_business_days").maybeSingle(),
+    all(() => supabase.from("notices").select("received_on, logged_at, voided_at").eq("notice_type", "receipt").order("id")),
   ]);
 
   const stageEvents = events
     .filter((e) => e.event_type === "matter.stage_changed")
     .map((e) => ({ matter_id: e.matter_id, occurred_at: e.occurred_at, from: Number(e.payload.from), to: Number(e.payload.to) }));
   const closed = events.filter((e) => e.event_type === "matter.closed");
-  const receiptDays = Number(setting.data?.value ?? 1);
+  const receiptDays = Number(setting.data?.value ?? 15);
 
   const opened = mattersByMonth(allMatters, closed, months);
   const stages = stageDurations(allMatters, stageEvents);
   const dl = deadlineRecord(deadlines, now, since);
-  const rc = receiptRecord(filings, now, since, receiptDays);
+  const rc = receiptRecord(receipts, filings, now, since, receiptDays);
   const approvals = approvalWait(gates, stageEntries(allMatters, stageEvents));
   const outbox = outboxRecord(messages);
   const decisions = decisionCounts(filings);
@@ -94,7 +95,7 @@ async function Dashboard() {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Open matters" value={open.length} hint={`${allMatters.length} in total`} />
         <Stat label="Deadlines met on time" value={pct(dl.rate)} tone={dl.rate === null ? "gray" : dl.rate === 100 ? "green" : "red"} hint={`${dl.onTime} of ${dl.counted} response deadlines`} />
-        <Stat label="Receipts on time" value={pct(rc.rate)} tone={rc.rate === null ? "gray" : rc.rate >= 90 ? "green" : "amber"} hint={`Within ${receiptDays} business day${receiptDays === 1 ? "" : "s"}`} />
+        <Stat label="Receipts on time" value={pct(rc.rate)} tone={rc.rate === null ? "gray" : rc.rate >= 90 ? "green" : "amber"} hint="Logged within 1 business day of arriving" />
         <Stat label="Billed this month" value={formatMoney(thisMonth)} hint={`${formatMoney(money.totalBilled)} in 12 months`} />
       </div>
 
@@ -126,12 +127,12 @@ async function Dashboard() {
           />
         </Card>
 
-        <Card title="Receipts logged" description={`Filings in the last 12 months; the receipt is due within ${receiptDays} business day${receiptDays === 1 ? "" : "s"}.`}>
+        <Card title="Receipts logged" description={`Receipts that arrived in the last 12 months, logged within 1 business day of arriving. "No receipt yet" counts filings still without one ${receiptDays} business days after filing.`}>
           <Figures
             items={[
               { label: "On time", value: rc.onTime },
               { label: "Late", value: rc.late, alert: rc.late > 0 },
-              { label: "Still waiting, past due", value: rc.waiting, alert: rc.waiting > 0 },
+              { label: "No receipt yet", value: rc.waiting, alert: rc.waiting > 0 },
             ]}
           />
         </Card>

@@ -14,7 +14,7 @@ test("a receipt is late only after its business day has passed", () => {
   assert.equal(receiptFollowups([filing], "2026-11-09", 1).length, 0); // due Monday
   const [late] = receiptFollowups([filing], "2026-11-10", 1);
   assert.equal(late.key, "receipt:f1");
-  assert.equal(late.title, "Receipt not logged: I-130");
+  assert.equal(late.title, "No receipt yet: I-130");
   assert.deepEqual(late.roles, ["docketing", "paralegal", "principal"]);
 });
 
@@ -26,7 +26,7 @@ test("the filing date is the firm's date, not UTC", () => {
 
 test("free text in the form type never reaches the email", () => {
   const filing = { id: "f1", matter_id: "m1", form_type: "petition for a named person", filed_at: "2026-11-02" };
-  assert.equal(receiptFollowups([filing], "2026-11-10", 1)[0].title, "Receipt not logged: filing");
+  assert.equal(receiptFollowups([filing], "2026-11-10", 1)[0].title, "No receipt yet: filing");
 });
 
 test("a matter is stalled after the quiet days, with a new key per quiet spell", () => {

@@ -81,8 +81,9 @@ do $$ begin
   -- Seeded engagements came before any fee amount: drafts with no amount.
   assert (select count(*) from public.invoices i join public.fee_schedule f on f.id = i.fee_phase_id
           where f.trigger = 'engagement' and i.amount_cents is null) = 3, 'seed engagement invoice drafts';
-  assert (select count(*) from public.invoices i join public.fee_schedule f on f.id = i.fee_phase_id where f.trigger = 'filing') = 5,
-    'seed filing invoice drafts (A: 1, C: 4)';
+  -- One filing-phase invoice per matter, even for Matter C's bundle of 4 forms (L2).
+  assert (select count(*) from public.invoices i join public.fee_schedule f on f.id = i.fee_phase_id where f.trigger = 'filing') = 2,
+    'seed filing invoice drafts (A: 1, C: 1 for 4 forms)';
 end $$;
 
 -- ===========================================================================
@@ -247,10 +248,17 @@ select public.approve_gate(pg_temp.m('Matter B'), 5::smallint);
 select pg_temp.b();
 select public.advance_stage(pg_temp.m('Matter B'));
 
--- Stage 6: EOIR-28 appearance, the motion filing, attorney approves, filed.
+-- Stage 6: the motion filing, the attorney's approval, and an appearance in the
+-- filing's forum: a G-28 alone does not cover the immigration court (redline 6, L3).
+insert into public.filings (matter_id, form_type, forum) values (pg_temp.m('Matter B'), 'Motion to reopen', 'immigration_court');
+insert into public.appearances (matter_id, party_id, form, forum, filed_on)
+select pg_temp.m('Matter B'), p.id, 'g28', 'uscis', current_date from public.parties p where p.matter_id = pg_temp.m('Matter B');
+do $$ begin
+  assert exists (select 1 from public.exit_checks(pg_temp.m('Matter B')) where item like 'Appearance form on file%' and not ok),
+    'a G-28 does not cover an immigration court filing';
+end $$;
 insert into public.appearances (matter_id, party_id, form, forum, filed_on)
 select pg_temp.m('Matter B'), p.id, 'eoir28', 'immigration_court', current_date from public.parties p where p.matter_id = pg_temp.m('Matter B');
-insert into public.filings (matter_id, form_type, forum) values (pg_temp.m('Matter B'), 'Motion to reopen', 'immigration_court');
 select pg_temp.expect_error($$update public.filings set filed_at = now() where id = pg_temp.f('Matter B', 'Motion to reopen')$$, '23514');  -- R3
 select pg_temp.a();
 select public.approve_gate(pg_temp.m('Matter B'), 6::smallint);
@@ -283,8 +291,12 @@ do $$ begin perform pg_temp.advance_to('Matter B', 8); exception when others the
   raise exception 'Matter B could not reach stage 8: % (failing: %)', sqlerrm, pg_temp.failing('Matter B'); end $$;
 update public.deadlines set status = 'met' where matter_id = pg_temp.m('Matter B') and status = 'open' and kind <> 'review';
 update public.filings set decision = 'granted' where id = pg_temp.f('Matter B', 'Motion to reopen');
+select pg_temp.expect_error($$update public.filings set post_decision = 'none' where id = pg_temp.f('Matter B', 'Motion to reopen')$$, '42501');
 select pg_temp.a();
-update public.filings set client_informed_at = now(), post_decision = 'none' where id = pg_temp.f('Matter B', 'Motion to reopen');
+update public.filings set client_informed_at = now() where id = pg_temp.f('Matter B', 'Motion to reopen');
+-- An appeal (L4) needs its hard deadline on the calendar first; this matter takes no appeal.
+select pg_temp.expect_error($$update public.filings set post_decision = 'appeal' where id = pg_temp.f('Matter B', 'Motion to reopen')$$, '23514');
+update public.filings set post_decision = 'none' where id = pg_temp.f('Matter B', 'Motion to reopen');
 select pg_temp.b();
 do $$ begin perform pg_temp.advance_to('Matter B', 10); exception when others then
   raise exception 'Matter B could not reach stage 10: % (failing: %)', sqlerrm, pg_temp.failing('Matter B'); end $$;

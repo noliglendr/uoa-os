@@ -43,7 +43,7 @@ const UI: Record<string, { title: string; group: string; control: Control }> = {
   "deadline.escalation_days": { title: "Reminder days before a deadline", group: "Deadlines and reminders", control: { kind: "numbers", unit: "days before" } },
   "deadline.mailing_extension_days": { title: "Extra days when a notice is mailed", group: "Deadlines and reminders", control: { kind: "number", unit: "days" } },
   "dashboard.stalled_days": { title: "A matter is stalled after", group: "Deadlines and reminders", control: { kind: "number", unit: "quiet days" } },
-  "followup.receipt_business_days": { title: "Receipt must be logged within", group: "Deadlines and reminders", control: { kind: "number", unit: "business days after filing" } },
+  "followup.receipt_business_days": { title: "Follow up on a missing receipt after", group: "Deadlines and reminders", control: { kind: "number", unit: "business days after filing" } },
   "followup.emails": { title: "Daily follow-up email to staff", group: "Deadlines and reminders", control: { kind: "bool", yes: "On", no: "Off" } },
   "attorney_of_record.default": { title: "Default attorney of record", group: "Matters", control: { kind: "choice", options: { principal: "The principal" } } },
   next_phase_new_matter: { title: "Refile or next phase opens a new matter", group: "Matters", control: { kind: "bool", yes: "Yes, new matter", no: "No, same matter" } },

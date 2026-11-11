@@ -55,7 +55,7 @@ set local role authenticated;
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000c');
 do $$ begin
   assert jsonb_array_length(public.dashboard_data() -> 'awaiting_receipt') = 1, 'the filed filing awaits its receipt';
-  assert public.dashboard_data() ->> 'receipt_days' = '1', 'receipt setting defaults to 1 business day';
+  assert public.dashboard_data() ->> 'receipt_days' = '15', 'receipt follow-up waits 15 business days (receipts take weeks)';
   assert (select value from public.settings where key = 'followup.emails') = 'true'::jsonb, 'follow-up emails default on';
   -- Reminder emails are system events: they never make a matter look active.
   assert (public.dashboard_data() -> 'last_activity' ->> pg_temp.m()::text)::timestamptz <= now(),
@@ -77,7 +77,7 @@ begin
   assert jsonb_array_length(d -> 'awaiting_receipt') = 1, 'the daily job sees the late receipt';
   assert jsonb_array_length(d -> 'matters') = 1, 'the daily job sees open matters';
   assert (d -> 'matters' -> 0 ->> 'last')::timestamptz <= now(), 'the daily job ignores system events too';
-  assert d -> 'settings' ->> 'followup.receipt_business_days' = '1', 'settings reach the daily job';
+  assert d -> 'settings' ->> 'followup.receipt_business_days' = '15', 'settings reach the daily job';
 end $$;
 insert into public.followups_sent (item_key, matter_id, sent_on, recipients, delivered)
 values ('receipt:' || gen_random_uuid(), pg_temp.m(), current_date, 2, false);

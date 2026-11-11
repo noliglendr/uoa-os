@@ -56,15 +56,18 @@ test("deadlines: on time, late, missed and overdue; cancelled and old ones left 
   assert.deepEqual(r, { onTime: 1, late: 2, overdue: 1, counted: 4, rate: 25 });
 });
 
-test("receipts logged within the business days after filing", () => {
-  const r = receiptRecord([
-    { filed_at: "2026-11-06T15:00:00Z", receipt_logged_at: "2026-11-09T15:00:00Z" }, // Fri -> Mon: on time
-    { filed_at: "2026-11-02T15:00:00Z", receipt_logged_at: "2026-11-05T15:00:00Z" }, // late
-    { filed_at: "2026-11-02T15:00:00Z", receipt_logged_at: null }, // still waiting
-    { filed_at: "2026-11-09T15:00:00Z", receipt_logged_at: null }, // not due yet
-    { filed_at: null, receipt_logged_at: null },
-  ], "2026-11-10", "2026-01-01", 1);
-  assert.deepEqual(r, { onTime: 1, late: 1, waiting: 1, counted: 3, rate: 33 });
+test("receipts: logged within 1 business day of arriving; waiting after the usual weeks", () => {
+  const notices = [
+    { received_on: "2026-11-06", logged_at: "2026-11-09T15:00:00Z" }, // arrived Fri, logged Mon: on time
+    { received_on: "2026-11-02", logged_at: "2026-11-05T15:00:00Z" }, // 3 days later: late
+    { received_on: "2026-11-02", logged_at: "2026-11-02T15:00:00Z", voided_at: "x" }, // entered in error
+  ];
+  const filings = [
+    { filed_at: "2026-10-01T15:00:00Z", receipt_logged_at: null }, // 6 weeks, no receipt: waiting
+    { filed_at: "2026-11-02T15:00:00Z", receipt_logged_at: null }, // a week: receipts take weeks, not late
+    { filed_at: "2026-10-01T15:00:00Z", receipt_logged_at: "2026-10-20T15:00:00Z" },
+  ];
+  assert.deepEqual(receiptRecord(notices, filings, "2026-11-10", "2026-01-01", 15), { onTime: 1, late: 1, waiting: 1, counted: 2, rate: 50 });
 });
 
 test("decisions and outbox", () => {
