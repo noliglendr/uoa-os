@@ -16,6 +16,7 @@ const TITLES: [RegExp, string, string, IconName][] = [
   [/^\/matters$/, "Work", "Matters", "briefcase"],
   [/^\/sweep/, "Work", "Weekly sweep", "refresh"],
   [/^\/rules/, "Firm", "Deadline rules", "scale"],
+  [/^\/dashboard/, "Work", "Firm dashboard", "chart"],
   [/^\/outbox/, "Work", "Client outbox", "send"],
   [/^\/invoices/, "Work", "Invoices", "invoice"],
   [/^\/templates/, "Firm", "Templates", "mail"],

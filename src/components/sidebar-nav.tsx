@@ -15,6 +15,7 @@ const SECTIONS: { title: string; items: { href: string; label: string; icon: Ico
     title: "Work",
     items: [
       { href: "/", label: "My work", icon: "home" },
+      { href: "/dashboard", label: "Firm dashboard", icon: "chart", roles: ["principal", "attorney", "administrator"] },
       { href: "/matters", label: "Matters", icon: "briefcase" },
       { href: "/matters/new", label: "New matter", icon: "plus" },
       { href: "/outbox", label: "Client outbox", icon: "send", roles: ["principal", "attorney", "paralegal", "docketing"] },
