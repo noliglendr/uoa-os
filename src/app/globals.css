@@ -196,3 +196,13 @@ details[open] > :not(summary) {
 .glow-breathe {
   animation: breathe 5s ease-in-out infinite;
 }
+
+/* Settings: the group the page glides to glows gold for a moment. */
+@keyframes section-flash {
+  0% { box-shadow: 0 0 0 0 rgb(214 178 90 / 0); }
+  25% { box-shadow: 0 0 0 4px rgb(214 178 90 / 0.55), 0 12px 32px -12px rgb(214 178 90 / 0.5); }
+  100% { box-shadow: 0 0 0 0 rgb(214 178 90 / 0); }
+}
+.section-flash {
+  animation: section-flash 1.3s ease-out;
+}

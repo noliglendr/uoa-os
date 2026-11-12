@@ -16,7 +16,7 @@ export const metadata: Metadata = { title: "Staff" };
 export default function StaffPage({ searchParams }: PageProps<"/staff">) {
   return (
     <>
-      <PageHeader eyebrow="Firm · Roles and access" icon="users" title="Staff" description="Who can sign in, and in which role. Anyone with history stays in the records: switch off their access. Only unused accounts can be removed." />
+      <PageHeader eyebrow="Firm" icon="users" title="Staff" description="Who can sign in, and their role." />
       <Suspense fallback={null}>
         <ErrorBanner searchParams={searchParams} />
       </Suspense>
@@ -101,7 +101,7 @@ async function Staff() {
           })}
         </Table>
         <p className="mt-3 text-xs text-slate-500">
-          Switching access off keeps a person&apos;s name on everything they did. Only accounts with no activity can be removed (Edit → Remove). Every change is logged.
+          Switch off access for people who leave: their name stays on their past work.
         </p>
       </Card>
       {manager && (

@@ -25,7 +25,7 @@ export function DraftsCard({ d }: { d: MatterData }) {
 
   return (
     <>
-      <Card title="New draft" description="Make draft shows the letter first; nothing is saved until you press Save draft. Drafts hold blanks such as [CLIENT NAME]: staff fill them in outside UOA OS after approval.">
+      <Card title="New draft" description="Nothing is saved until you press Save draft.">
         {!d.draftingEnabled ? (
           <Empty>AI drafts are off. The principal can turn them on in Settings.</Empty>
         ) : ready.length === 0 ? (
@@ -95,7 +95,7 @@ function Draft({ x, d, title }: { x: Row; d: MatterData; title: string }) {
       </p>
       {x.inputs && (
         <details className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
-          <summary className="cursor-pointer text-xs font-medium text-slate-600">What staff gave the AI (case facts, D24)</summary>
+          <summary className="cursor-pointer text-xs font-medium text-slate-600">What staff gave the AI</summary>
           <ul className="mt-2 list-disc space-y-0.5 pl-5">
             {((x.inputs.issues ?? x.inputs.facts ?? []) as string[]).map((l, i) => (
               <li key={i}>{l}</li>

@@ -8,6 +8,7 @@ import { UserMenu } from "@/components/user-menu";
 import { requireStaff } from "@/lib/session";
 import { ROLE_LABELS } from "@/lib/labels";
 import { signOut } from "../actions";
+import { Logo } from "@/components/logo";
 
 export default function AppLayout({ children }: LayoutProps<"/">) {
   const nav = (
@@ -108,7 +109,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
       {/* Bottom bar (phone): main sections one tap away */}
       <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
         <Suspense fallback={<TabList pathname="" />}>
-          <MobileTabBar />
+          <RoleTabBar />
         </Suspense>
       </nav>
     </div>
@@ -118,13 +119,19 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
 function Brand({ compact }: { compact?: boolean }) {
   return (
     <Link href="/" className="flex items-center gap-3">
-      <span className="flex h-9 w-9 items-center justify-center rounded-md bg-gold-400 text-sm font-bold tracking-tight text-navy-950">UOA</span>
+      <Logo size={36} />
       <span className="leading-tight">
         <span className={`block text-sm font-semibold ${compact ? "text-navy-900" : "text-white"}`}>UOA Legal</span>
         <span className={`block text-xs ${compact ? "text-slate-500" : "text-navy-300"}`}>Firm OS</span>
       </span>
     </Link>
   );
+}
+
+/** Phone tab bar: the attorney and principal get their own tabs. */
+async function RoleTabBar() {
+  const { staff } = await requireStaff();
+  return <MobileTabBar attorney={staff?.role === "principal" || staff?.role === "attorney"} />;
 }
 
 /** The menu, showing only the pages your role can use. */

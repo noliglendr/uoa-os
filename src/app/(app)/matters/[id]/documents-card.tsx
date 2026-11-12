@@ -38,7 +38,7 @@ export function DocumentsCard({ d }: { d: MatterData }) {
   return (
     <Card
       title="Client documents"
-      description="Secure upload links for the client. Test with made-up files only until real documents are approved (D17)."
+      description="Secure upload links for the client. Made-up files only for now."
       actions={
         d.canDocs && docs.length > 0 ? (
           <a href={`/matters/${d.matter.id}/documents-zip`} className={buttonClass("secondary")}>
@@ -58,11 +58,11 @@ export function DocumentsCard({ d }: { d: MatterData }) {
             />
           ) : (
             <p className="rounded-lg border border-gold-300 bg-gold-100/50 px-4 py-3 text-sm text-slate-700">
-              The attorney must approve the “Request: upload documents” template on the{" "}
+              First, the attorney approves the “Request: upload documents” template on the{" "}
               <Link href="/templates" className="font-medium text-navy-700 hover:underline">
                 Templates
               </Link>{" "}
-              page before upload links can be made.
+              page.
             </p>
           )
         )}
@@ -150,7 +150,7 @@ export function DocumentsCard({ d }: { d: MatterData }) {
               })}
             </ul>
           )}
-          {!d.canDocs && docs.length > 0 && <p className="mt-2 text-xs text-slate-500">Only the attorney, principal and paralegals open files (D16).</p>}
+          {!d.canDocs && docs.length > 0 && <p className="mt-2 text-xs text-slate-500">Only the attorney, principal and paralegals open files.</p>}
         </div>
       </div>
     </Card>

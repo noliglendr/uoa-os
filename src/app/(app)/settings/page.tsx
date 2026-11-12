@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { Badge, Button, Card, ErrorBanner, Hidden, Loading, NotForYourRole, PageHeader, inputClass } from "@/components/ui";
+import { Badge, ErrorBanner, Hidden, Loading, NotForYourRole, PageHeader, inputClass } from "@/components/ui";
 import { canManage, requireStaff } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
-
 import { formatDateTime } from "@/lib/labels";
-import { updateSetting } from "../actions";
+import { SectionNav } from "./section-nav";
+import { SettingForm } from "./setting-form";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Settings" };
 export default function SettingsPage({ searchParams }: PageProps<"/settings">) {
   return (
     <>
-      <PageHeader eyebrow="Firm · Open decisions" icon="cog" title="Settings" description="Firm rules that are open decisions. The principal or an administrator can change them, and every change is logged." />
+      <PageHeader eyebrow="Firm" icon="cog" title="Settings" description="How UOA OS works for the firm. Every change is logged." />
       <Suspense fallback={null}>
         <ErrorBanner searchParams={searchParams} />
       </Suspense>
@@ -34,131 +34,151 @@ type Control =
   | { kind: "preset"; options: { label: string; value: unknown }[] }
   | { kind: "json" };
 
-const UI: Record<string, { title: string; group: string; control: Control }> = {
+type Group = "deadlines" | "matters" | "clients" | "ai" | "billing";
+
+const GROUPS: { id: Group; title: string }[] = [
+  { id: "deadlines", title: "Deadlines and reminders" },
+  { id: "matters", title: "Matters" },
+  { id: "clients", title: "Clients" },
+  { id: "ai", title: "AI drafting" },
+  { id: "billing", title: "Billing, access and records" },
+];
+
+const ON = { kind: "bool", yes: "On", no: "Off" } as const;
+
+/** Each setting: a plain name, at most one short line of help, and its control. Shown in this order. */
+const UI: Record<string, { title: string; group: Group; help?: string; control: Control }> = {
   "escalation.recipients": {
     title: "Who gets deadline reminders",
-    group: "Deadlines and reminders",
-    control: {
-      kind: "multi",
-      options: { attorney_of_record: "Attorney of record", principal: "Principal", docketing: "Docketing staff", attorney: "Every attorney", paralegal: "Every paralegal" },
-    },
+    group: "deadlines",
+    control: { kind: "multi", options: { attorney_of_record: "Attorney of record", principal: "Principal", docketing: "Docketing", attorney: "Every attorney", paralegal: "Every paralegal" } },
   },
-  "deadline.escalation_days": { title: "Reminder days before a deadline", group: "Deadlines and reminders", control: { kind: "numbers", unit: "days before" } },
-  "deadline.mailing_extension_days": { title: "Extra days when a notice is mailed", group: "Deadlines and reminders", control: { kind: "number", unit: "days" } },
-  "dashboard.stalled_days": { title: "A matter is stalled after", group: "Deadlines and reminders", control: { kind: "number", unit: "quiet days" } },
-  "followup.receipt_business_days": { title: "Follow up on a missing receipt after", group: "Deadlines and reminders", control: { kind: "number", unit: "business days after filing" } },
-  "followup.emails": { title: "Daily follow-up email to staff", group: "Deadlines and reminders", control: { kind: "bool", yes: "On", no: "Off" } },
-  "attorney_of_record.default": { title: "Default attorney of record", group: "Matters", control: { kind: "choice", options: { principal: "The principal" } } },
-  next_phase_new_matter: { title: "Refile or next phase opens a new matter", group: "Matters", control: { kind: "bool", yes: "Yes, new matter", no: "No, same matter" } },
+  "deadline.escalation_days": { title: "Send reminders", group: "deadlines", help: "Days before each deadline, separated by commas.", control: { kind: "numbers", unit: "days before" } },
+  "deadline.mailing_extension_days": { title: "Extra time for mailed notices", group: "deadlines", control: { kind: "number", unit: "days" } },
+  "followup.receipt_business_days": { title: "Receipt overdue after", group: "deadlines", control: { kind: "number", unit: "business days" } },
+  "dashboard.stalled_days": { title: "Matter stalled after", group: "deadlines", help: "Days with nothing logged.", control: { kind: "number", unit: "days" } },
+  "followup.emails": { title: "Daily follow-up email to staff", group: "deadlines", control: ON },
+
+  "attorney_of_record.default": { title: "Default attorney of record", group: "matters", help: "Can be changed on each matter.", control: { kind: "choice", options: { principal: "The principal" } } },
+  next_phase_new_matter: { title: "Refile or next phase", group: "matters", control: { kind: "bool", yes: "New matter", no: "Same matter" } },
   premium_processing: {
     title: "Premium processing",
-    group: "Matters",
+    group: "matters",
     control: {
       kind: "preset",
       options: [
-        { label: "Ask on each matter, default No", value: { mode: "ask_per_matter", default: false } },
-        { label: "Ask on each matter, default Yes", value: { mode: "ask_per_matter", default: true } },
-        { label: "Always use premium processing", value: { mode: "always", default: true } },
-        { label: "Never use premium processing", value: { mode: "never", default: false } },
+        { label: "Ask each time (default No)", value: { mode: "ask_per_matter", default: false } },
+        { label: "Ask each time (default Yes)", value: { mode: "ask_per_matter", default: true } },
+        { label: "Always", value: { mode: "always", default: true } },
+        { label: "Never", value: { mode: "never", default: false } },
       ],
     },
   },
+
+  client_auto_updates: { title: "Automatic messages to clients", group: "clients", help: "Keep off: staff send every message.", control: ON },
+  "client_followup.engagement_days": { title: "Remind to sign the engagement after", group: "clients", control: { kind: "number", unit: "days" } },
+  "client_followup.documents_days": { title: "Remind about missing documents after", group: "clients", control: { kind: "number", unit: "days" } },
+  "documents.link_days": { title: "Upload links last", group: "clients", control: { kind: "number", unit: "days" } },
+  "documents.overdue_days": { title: "Flag late documents after", group: "clients", help: "Counted from the due date.", control: { kind: "number", unit: "days" } },
+
+  "drafting.enabled": { title: "AI first drafts of letters", group: "ai", control: ON },
+  "drafting.case_facts": { title: "Send case facts to the AI", group: "ai", help: "For RFE/NOID outlines and statements. Made-up matters only for now.", control: ON },
+
+  "billing.invoice_drafts": { title: "Prepare invoice drafts", group: "billing", help: "The attorney approves every invoice.", control: ON },
   delegated_account_access: {
-    title: "Staff access to the attorney's USCIS/ECAS accounts",
-    group: "Access and clients",
-    control: { kind: "choice", options: { off: "Off: staff prepare, the attorney submits", prepare_only: "Prepare only", submit_after_gate: "Submit after attorney approval" } },
+    title: "Staff use of the attorney's USCIS/ECAS accounts",
+    group: "billing",
+    control: { kind: "choice", options: { off: "Off: the attorney submits", prepare_only: "Prepare only", submit_after_gate: "Submit after approval" } },
   },
-  client_auto_updates: { title: "Automatic updates to clients", group: "Access and clients", control: { kind: "bool", yes: "On", no: "Off" } },
-  "client_followup.engagement_days": { title: "Remind the client to sign the engagement after", group: "Access and clients", control: { kind: "number", unit: "days at stage 2" } },
-  "client_followup.documents_days": { title: "Remind the client about requested documents after", group: "Access and clients", control: { kind: "number", unit: "days" } },
-  "documents.link_days": { title: "Client upload links work for", group: "Access and clients", control: { kind: "number", unit: "days" } },
-  "documents.overdue_days": { title: "Flag a requested document on My work", group: "Access and clients", control: { kind: "number", unit: "days after its due date" } },
-  "billing.invoice_drafts": { title: "Prepare invoice drafts at fee phases", group: "Billing", control: { kind: "bool", yes: "On", no: "Off" } },
-  "drafting.case_facts": { title: "Case facts to the AI (RFE/NOID outlines, statements)", group: "Access and clients", control: { kind: "bool", yes: "On (made-up matters only until D9)", no: "Off" } },
-  "drafting.enabled": { title: "AI first drafts of letters", group: "Access and clients", control: { kind: "bool", yes: "On", no: "Off" } },
-  "retention.years_after_close": { title: "Keep closed files for", group: "Records", control: { kind: "number", unit: "years" } },
+  "retention.years_after_close": { title: "Keep closed files for", group: "billing", help: "Never deleted automatically.", control: { kind: "number", unit: "years" } },
 };
 
-const GROUPS = ["Deadlines and reminders", "Matters", "Access and clients", "Billing", "Records", "Other"];
+const ORDER = Object.keys(UI);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Setting = { key: string; value: any; description: string | null; decision: string | null; updated_by: string | null; updated_at: string };
+type Setting = { key: string; value: any; decision: string | null; updated_by: string | null; updated_at: string };
 
 async function Settings() {
   // One database call, alongside the sign-in check.
   const supabase = await createClient();
   const [{ staff }, { data, error }] = await Promise.all([requireStaff(), supabase.rpc("settings_page", {}, { get: true })]);
   if (error) throw new Error(error.message);
+  if (!canManage(staff)) return <NotForYourRole who="the principal and administrators" />;
   const names = data.names as Record<string, string>;
-  const principal = canManage(staff);
-  if (!principal) return <NotForYourRole who="the principal and administrators" />;
-  const rows = data.settings as Setting[];
+  const all = data.settings as Setting[];
+  const rows = all.filter((s) => UI[s.key]).sort((a, b) => ORDER.indexOf(a.key) - ORDER.indexOf(b.key));
+  const extra = all.filter((s) => !UI[s.key]);
+  const groups = GROUPS.map((g) => ({ ...g, items: rows.filter((s) => UI[s.key].group === g.id) })).filter((g) => g.items.length);
 
   return (
     <>
-      {!principal && (
-        <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">You can see the settings. Only the principal or an administrator can change them.</p>
-      )}
-      {GROUPS.map((group) => {
-        const items = rows.filter((s) => (UI[s.key]?.group ?? "Other") === group);
-        if (items.length === 0) return null;
-        return (
-          <Card key={group} title={group} flush>
-            <ul className="divide-y divide-slate-100">
-              {items.map((s) => (
-                <li key={s.key} className="grid gap-3 px-4 py-4 md:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-sm font-semibold text-slate-900">{UI[s.key]?.title ?? s.key}</h3>
-                      {s.decision && <Badge tone="gold">{s.decision}</Badge>}
-                    </div>
-                    {s.description && <p className="mt-1 text-sm text-slate-500">{s.description}</p>}
-                    <p className="mt-1 text-xs text-slate-400">
-                      {s.updated_by ? `Changed by ${names[s.updated_by] ?? "?"}, ${formatDateTime(s.updated_at)}` : "Default value"}
-                    </p>
-                  </div>
-                  <div>
-                    {principal ? (
-                      <form key={JSON.stringify(s.value)} action={updateSetting} className="space-y-2">
-                        <Hidden values={{ back: "/settings", key: s.key, kind: UI[s.key]?.control.kind ?? "json" }} />
-                        <Editor control={UI[s.key]?.control ?? { kind: "json" }} value={s.value} label={UI[s.key]?.title ?? s.key} />
-                        <Button variant="primary">Save</Button>
-                      </form>
-                    ) : (
-                      <p className="text-sm font-medium text-slate-900">{show(UI[s.key]?.control ?? { kind: "json" }, s.value)}</p>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        );
-      })}
+      <SectionNav groups={groups.map(({ id, title }) => ({ id, title }))} />
+
+      {[...groups, ...(extra.length ? [{ id: "other", title: "Other", items: extra }] : [])].map((g) => (
+        <section key={g.id} id={g.id} className="scroll-mt-36 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <h2 className="border-b border-slate-100 bg-slate-50 px-5 py-3 text-sm font-semibold text-slate-900">{g.title}</h2>
+          <ul className="divide-y divide-slate-100">
+            {g.items.map((s) => (
+              <Row key={s.key} s={s} names={names} />
+            ))}
+          </ul>
+        </section>
+      ))}
     </>
   );
 }
+
+function Row({ s, names }: { s: Setting; names: Record<string, string> }) {
+  const ui = UI[s.key] ?? { title: s.key, control: { kind: "json" } as Control };
+  return (
+    <li className="grid items-start gap-3 px-5 py-4 md:grid-cols-[minmax(0,1fr)_20rem] md:gap-8">
+      <div className="min-w-0">
+        <h3 className="text-sm font-semibold text-slate-900">{ui.title}</h3>
+        {ui.help && <p className="mt-0.5 text-sm text-slate-500">{ui.help}</p>}
+        <p className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+          {s.decision && <Badge tone="gold">{s.decision}</Badge>}
+          {s.updated_by ? `Changed by ${names[s.updated_by] ?? "?"}, ${formatDateTime(s.updated_at)}` : "Default"}
+        </p>
+      </div>
+      <SettingForm key={JSON.stringify(s.value)}>
+        <Hidden values={{ back: "/settings", key: s.key, kind: ui.control.kind }} />
+        <Editor control={ui.control} value={s.value} label={ui.title} />
+      </SettingForm>
+    </li>
+  );
+}
+
+const choiceChip =
+  "cursor-pointer rounded-md px-3 py-1.5 text-center text-sm font-medium text-slate-600 transition has-[:checked]:bg-navy-800 has-[:checked]:text-white has-[:checked]:shadow-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-navy-300";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function Editor({ control, value, label }: { control: Control; value: any; label: string }) {
   switch (control.kind) {
     case "bool":
       return (
-        <select name="value" aria-label={label} defaultValue={String(Boolean(value))} className={`${inputClass} w-full`}>
-          <option value="true">{control.yes}</option>
-          <option value="false">{control.no}</option>
-        </select>
+        <div role="radiogroup" aria-label={label} className="grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1">
+          {[
+            { v: "true", l: control.yes },
+            { v: "false", l: control.no },
+          ].map((o) => (
+            <label key={o.v} className={choiceChip}>
+              <input type="radio" name="value" value={o.v} defaultChecked={String(Boolean(value)) === o.v} className="sr-only" />
+              {o.l}
+            </label>
+          ))}
+        </div>
       );
     case "number":
       return (
         <label className="flex items-center gap-2 text-sm text-slate-600">
-          <input name="value" aria-label={label} type="number" min={0} defaultValue={value} className={`${inputClass} w-24`} />
+          <input name="value" aria-label={label} type="number" min={0} defaultValue={value} className={`${inputClass} w-24 text-right`} />
           {control.unit}
         </label>
       );
     case "numbers":
       return (
         <label className="flex items-center gap-2 text-sm text-slate-600">
-          <input name="value" aria-label={label} defaultValue={(value as number[]).join(", ")} className={`${inputClass} w-40`} />
+          <input name="value" aria-label={label} defaultValue={(value as number[]).join(", ")} className={`${inputClass} w-44`} />
           {control.unit}
         </label>
       );
@@ -175,10 +195,13 @@ function Editor({ control, value, label }: { control: Control; value: any; label
       );
     case "multi":
       return (
-        <fieldset className="space-y-1.5">
+        <fieldset aria-label={label} className="flex flex-wrap gap-1.5">
           {Object.entries(control.options).map(([v, l]) => (
-            <label key={v} className="flex items-center gap-2 text-sm text-slate-700">
-              <input type="checkbox" name="value" value={v} defaultChecked={(value as string[]).includes(v)} className="h-4 w-4 rounded border-slate-300 accent-navy-800" />
+            <label
+              key={v}
+              className="cursor-pointer rounded-full px-3 py-1 text-sm text-slate-600 ring-1 ring-slate-300 transition has-[:checked]:bg-navy-800 has-[:checked]:text-white has-[:checked]:ring-navy-800 has-[:focus-visible]:ring-2"
+            >
+              <input type="checkbox" name="value" value={v} defaultChecked={(value as string[]).includes(v)} className="sr-only" />
               {l}
             </label>
           ))}
@@ -198,27 +221,7 @@ function Editor({ control, value, label }: { control: Control; value: any; label
       );
     }
     default:
-      return <input name="value" aria-label={label} defaultValue={JSON.stringify(value)} className={`${inputClass} w-full font-mono text-xs`} />;
-  }
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function show(control: Control, value: any): string {
-  switch (control.kind) {
-    case "bool":
-      return value ? control.yes : control.no;
-    case "number":
-      return `${value} ${control.unit}`;
-    case "numbers":
-      return `${(value as number[]).join(", ")} ${control.unit}`;
-    case "choice":
-      return control.options[String(value)] ?? String(value);
-    case "multi":
-      return (value as string[]).map((v) => control.options[v] ?? v).join(", ");
-    case "preset":
-      return control.options.find((o) => same(o.value, value))?.label ?? JSON.stringify(value);
-    default:
-      return JSON.stringify(value);
+      return <input name="value" aria-label={label} defaultValue={JSON.stringify(value)} className={`${inputClass} w-full font-mono text-xs sm:text-xs`} />;
   }
 }
 

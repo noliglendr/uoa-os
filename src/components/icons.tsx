@@ -30,6 +30,7 @@ const PATHS = {
   calendar: "M8 3v3m8-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z",
   chart: "M3 3v18h18M8 17v-5m5 5V8m5 9v-3",
   send: "M22 2 11 13m11-11-7 20-4-9-9-4 20-7Z",
+  info: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-5v-4m0-4h.01",
   invoice: "M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8l-5-5Zm0 0v5h5M9 13h6m-6 4h6m-6-8h2",
 } as const;
 

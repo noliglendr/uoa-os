@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Icon, type IconName } from "./icons";
 import { LoginIllustration } from "./login-illustration";
+import { Logo } from "@/components/logo";
 
 /**
  * Frame for the sign-in pages. Desktop: the firm's artwork and promise on the
@@ -55,7 +56,7 @@ export function AuthShell({ title, subtitle, children }: { title: string; subtit
 function Brand({ dark }: { dark?: boolean }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-gold-400 font-bold tracking-tight text-navy-950 shadow-sm">UOA</span>
+      <Logo size={44} />
       <span className="leading-tight">
         <span className={`block text-lg font-semibold ${dark ? "text-navy-900" : "text-white"}`}>UOA Legal</span>
         <span className={`block text-sm ${dark ? "text-slate-500" : "text-navy-300"}`}>Firm OS · Immigration</span>

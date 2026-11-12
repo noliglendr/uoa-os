@@ -82,7 +82,7 @@ export function RecordEditor({
               <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
                 <div>
                   <h2 className="text-base font-semibold text-slate-900">Edit {title}</h2>
-                  <p className="text-xs text-slate-500">Every change is logged with your name. Nothing is deleted.</p>
+                  <p className="text-xs text-slate-500">Every change is logged.</p>
                 </div>
                 <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
                   <Icon name="close" className="h-5 w-5" />
@@ -98,7 +98,7 @@ export function RecordEditor({
                     <label key={f.name} className="block space-y-1">
                       <span className="text-sm font-medium text-slate-700">{f.label}</span>
                       {f.type === "select" ? (
-                        <select name={`f_${f.name}`} defaultValue={String(f.value ?? "")} className={`${inputClass} h-9 w-full`}>
+                        <select name={`f_${f.name}`} defaultValue={String(f.value ?? "")} className={`${inputClass} h-9 sm:h-9 w-full`}>
                           {Object.entries(f.options ?? {}).map(([v, l]) => (
                             <option key={v} value={v}>
                               {l}
@@ -112,7 +112,7 @@ export function RecordEditor({
                           inputMode={f.type === "number" ? "decimal" : undefined}
                           defaultValue={f.value ?? ""}
                           required={f.required}
-                          className={`${inputClass} h-9 w-full`}
+                          className={`${inputClass} h-9 sm:h-9 w-full`}
                         />
                       )}
                       {f.hint && <span className="block text-xs text-slate-500">{f.hint}</span>}
@@ -133,11 +133,11 @@ export function RecordEditor({
                     <div>
                       <p className="text-sm font-medium text-red-800">Entered in error</p>
                       <p className="text-xs text-slate-500">
-                        Added by mistake? It leaves the lists and the checks, but stays in History and the export. This can&apos;t be undone.
+                        Added by mistake? It leaves the lists but stays in History. This can&apos;t be undone.
                       </p>
                     </div>
                     <div className="flex gap-2">
-                      <input name="reason" required placeholder="Reason, e.g. logged on the wrong matter" className={`${inputClass} h-9 flex-1`} />
+                      <input name="reason" required placeholder="Reason, e.g. logged on the wrong matter" className={`${inputClass} h-9 sm:h-9 flex-1`} />
                       <ConfirmButton variant="danger" className="h-9" confirm={`Mark ${title} as entered in error?\n\nIt leaves the work but stays in History. This can't be undone and is logged with your name.`}>
                         Mark
                       </ConfirmButton>

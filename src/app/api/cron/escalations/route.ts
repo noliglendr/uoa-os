@@ -10,13 +10,15 @@
 // Also sends one alert per matter whose engagement is not signed by its
 // engagement alert date (redline 3: early deadlines before engagement),
 // the daily follow-up email to staff (followups.ts, Increment 4 Step 1), and
-// client follow-ups prepared in the Outbox (Increment 4 Step 3; never sent).
+// client follow-ups prepared in the Outbox (Increment 4 Step 3; never sent),
+// and the attorney's morning summary (morning.ts).
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { daysBetween, escalationDue, isBusinessDay, today } from "@/lib/deadlines";
 import { sendEmail } from "@/lib/email";
 import { stageName } from "@/lib/labels";
 import { runFollowups } from "./followups";
+import { runMorningSummary } from "./morning";
 
 // Emails are paced (Resend's rate limit), so a busy day can take a while.
 export const maxDuration = 300;
@@ -140,6 +142,14 @@ export async function GET(request: Request) {
     followups = { error: (e as Error).message };
   }
 
+  // The attorney's morning summary (business days, once a day, only when something needs them).
+  let morning: unknown;
+  try {
+    morning = await runMorningSummary(db, emailOf, appUrl, now);
+  } catch (e) {
+    morning = { error: (e as Error).message };
+  }
+
   // Client follow-ups (Increment 4, Step 3): prepared in the Outbox for staff
   // to send. Business days only, like the staff follow-ups.
   let clientFollowups: unknown = { skipped: "not a business day" };
@@ -148,5 +158,5 @@ export async function GET(request: Request) {
     clientFollowups = queueError ? { error: queueError.message } : prepared;
   }
 
-  return Response.json({ date: now, reminders: results.length, results, engagement_alerts: engagementAlerts, followups, client_followups: clientFollowups });
+  return Response.json({ date: now, reminders: results.length, results, engagement_alerts: engagementAlerts, followups, morning, client_followups: clientFollowups });
 }

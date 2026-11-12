@@ -3,6 +3,8 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { Badge, Button, Card, Empty, ErrorBanner, Hidden, Loading, NotForYourRole, PageHeader, inputClass } from "@/components/ui";
 import { ConfirmButton } from "@/components/confirm-button";
+import { Disclosure } from "@/components/disclosure";
+import { FilterChips, filterHref } from "@/components/filter-chips";
 import { Icon } from "@/components/icons";
 import { requireStaff } from "@/lib/session";
 import { addDays, today } from "@/lib/deadlines";
@@ -20,16 +22,16 @@ export default function OutboxPage({ searchParams }: PageProps<"/outbox">) {
   return (
     <>
       <PageHeader
-        eyebrow="Work · Automation"
+        eyebrow="Work"
         icon="send"
         title="Client outbox"
-        description="Client updates and follow-ups that UOA OS prepared from the attorney's approved templates. Copy each message, add the client's name, send it yourself, then click “Mark sent”. UOA OS never sends anything to a client."
+        description="Messages ready for clients. Copy, add the client's name, send it yourself, then click “Mark sent”."
       />
       <Suspense fallback={null}>
         <ErrorBanner searchParams={searchParams} />
       </Suspense>
       <Suspense fallback={<Loading />}>
-        <Outbox />
+        <Outbox searchParams={searchParams} />
       </Suspense>
     </>
   );
@@ -40,7 +42,11 @@ const SENDERS = ["principal", "attorney", "paralegal", "docketing"];
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = any;
 
-async function Outbox() {
+const TYPES = { all: "All", update: "Updates", followup: "Follow-ups" } as const;
+
+async function Outbox({ searchParams }: { searchParams: PageProps<"/outbox">["searchParams"] }) {
+  const raw = (await searchParams).type;
+  const type = typeof raw === "string" && raw in TYPES ? raw : "all";
   const { supabase, staff } = await requireStaff();
   if (!staff || !SENDERS.includes(staff.role)) return <NotForYourRole who="the attorney, paralegals and docketing staff" />;
 
@@ -61,7 +67,11 @@ async function Outbox() {
   const who = (names.data ?? {}) as Record<string, string>;
   // The document request email is made on the matter page, not in the outbox.
   const off = (templates.data ?? []).filter((t) => !t.attorney_approved && t.kind !== "documents_request");
-  const waitingRows = waiting.data as Row[];
+  const allWaiting = waiting.data as Row[];
+  const isFollowup = (m: Row) => String(m.kind).endsWith("followup");
+  const ofType = (t: string) => allWaiting.filter((m) => t === "all" || (t === "followup") === isFollowup(m));
+  const waitingRows = ofType(type);
+  const back = filterHref("/outbox", { type }, { type: "all" });
   const doneRows = recent.data as Row[];
 
   return (
@@ -78,11 +88,11 @@ async function Outbox() {
       )}
 
       <Card
-        title={`Waiting to be sent (${waitingRows.length})`}
-        description="Oldest first. Fill in [CLIENT NAME] and any other blank when you send it."
+        title={`Waiting to be sent (${allWaiting.length})`}
+        description="Oldest first. Click a message to open it."
         actions={
           <form action={checkClientFollowups}>
-            <Hidden values={{ back: "/outbox" }} />
+            <Hidden values={{ back }} />
             <Button>
               <Icon name="refresh" /> Check for follow-ups now
             </Button>
@@ -90,48 +100,66 @@ async function Outbox() {
         }
         flush
       >
+        {allWaiting.length > 0 && (
+          <div className="border-b border-slate-100 px-4 py-3">
+            <FilterChips
+              label="Type"
+              active={type}
+              href={(v) => filterHref("/outbox", { type: v }, { type: "all" })}
+              options={Object.entries(TYPES).map(([v, l]) => ({ value: v, label: l, count: ofType(v).length }))}
+            />
+          </div>
+        )}
         {waitingRows.length === 0 ? (
           <div className="flex items-center gap-2 p-4 text-sm text-emerald-700">
-            <Icon name="check" className="h-5 w-5" /> Nothing waiting. New messages appear here when a receipt is logged, an appointment is set, or a client follow-up is due.
+            <Icon name="check" className="h-5 w-5" /> {allWaiting.length ? "Nothing of this type." : "Nothing waiting."}
           </div>
         ) : (
           <ul className="divide-y divide-slate-100">
             {waitingRows.map((m) => (
-              <li key={m.id} className="space-y-3 px-4 py-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Link href={`/matters/${m.matter.id}`} className="font-semibold text-navy-800 hover:underline">
-                    {m.matter.code}
-                  </Link>
-                  <Badge tone={m.kind.endsWith("followup") ? "amber" : "blue"}>{label(MESSAGE_KINDS, m.kind)}</Badge>
-                  <span className="text-xs text-slate-500">Prepared {formatDateTime(m.created_at)}</span>
-                </div>
-                <div className="whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-relaxed text-slate-800">{m.body}</div>
-                <div className="flex flex-wrap items-end gap-3">
-                  <CopyButton text={m.body} />
-                  <form action={markMessageSent} className="flex flex-wrap items-end gap-2">
-                    <Hidden values={{ back: "/outbox", message_id: m.id }} />
-                    <select name="via" required defaultValue="" aria-label="How it was sent" className={inputClass}>
-                      <option value="" disabled>
-                        How did you send it?
-                      </option>
-                      {Object.entries(SENT_VIA).map(([v, l]) => (
-                        <option key={v} value={v}>
-                          {l}
-                        </option>
-                      ))}
-                    </select>
-                    <ConfirmButton confirm={`${m.matter.code}: did you send this message to the client yourself?\n\nThis is logged with your name and the time.`}>
-                      <Icon name="check" /> Mark sent
-                    </ConfirmButton>
-                  </form>
-                  <form action={cancelMessage} className="flex flex-wrap items-end gap-2">
-                    <Hidden values={{ back: "/outbox", message_id: m.id }} />
-                    <input name="reason" required placeholder="Why not send it?" aria-label="Reason for not sending" className={`${inputClass} w-48`} />
-                    <ConfirmButton variant="secondary" confirm={`${m.matter.code}: don't send this message? It is kept in the record as cancelled.`}>
-                      Don&apos;t send
-                    </ConfirmButton>
-                  </form>
-                </div>
+              <li key={m.id}>
+                <Disclosure
+                  summary={
+                    <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                      <strong className="text-navy-800">{m.matter.code}</strong>
+                      <Badge tone={isFollowup(m) ? "amber" : "blue"}>{label(MESSAGE_KINDS, m.kind)}</Badge>
+                      <span className="text-xs text-slate-500">Prepared {formatDateTime(m.created_at)}</span>
+                    </span>
+                  }
+                >
+                  <div className="space-y-3 border-t border-slate-100 bg-slate-50/60 px-4 py-4 sm:pl-11">
+                    <div className="whitespace-pre-wrap rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm leading-relaxed text-slate-800">{m.body}</div>
+                    <div className="flex flex-wrap items-end gap-3">
+                      <CopyButton text={m.body} />
+                      <form action={markMessageSent} className="flex flex-wrap items-end gap-2">
+                        <Hidden values={{ back, message_id: m.id }} />
+                        <select name="via" required defaultValue="" aria-label="How it was sent" className={inputClass}>
+                          <option value="" disabled>
+                            How did you send it?
+                          </option>
+                          {Object.entries(SENT_VIA).map(([v, l]) => (
+                            <option key={v} value={v}>
+                              {l}
+                            </option>
+                          ))}
+                        </select>
+                        <ConfirmButton confirm={`${m.matter.code}: did you send this message to the client yourself?\n\nThis is logged with your name and the time.`}>
+                          <Icon name="check" /> Mark sent
+                        </ConfirmButton>
+                      </form>
+                      <form action={cancelMessage} className="flex flex-wrap items-end gap-2">
+                        <Hidden values={{ back, message_id: m.id }} />
+                        <input name="reason" required placeholder="Why not send it?" aria-label="Reason for not sending" className={`${inputClass} w-48`} />
+                        <ConfirmButton variant="secondary" confirm={`${m.matter.code}: don't send this message? It is kept in the record as cancelled.`}>
+                          Don&apos;t send
+                        </ConfirmButton>
+                      </form>
+                      <Link href={`/matters/${m.matter.id}`} className="self-center text-sm font-medium text-navy-700 hover:underline">
+                        Open the matter
+                      </Link>
+                    </div>
+                  </div>
+                </Disclosure>
               </li>
             ))}
           </ul>

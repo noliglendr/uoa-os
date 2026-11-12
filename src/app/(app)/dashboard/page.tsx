@@ -21,7 +21,7 @@ export default function FirmDashboardPage() {
         eyebrow="Firm · Last 12 months"
         icon="chart"
         title="Firm dashboard"
-        description="How the firm is doing: fees billed, deadlines met, receipts logged on time, and how long matters and approvals take. Today's work is on My work."
+        description="How the firm is doing over the last 12 months."
       />
       <Suspense fallback={<Loading />}>
         <Dashboard />
@@ -103,7 +103,7 @@ async function Dashboard() {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <Card title="Fees billed per month" description="Invoices the attorney approved, by approval month. Payments collected are in the billing tool.">
+        <Card title="Fees billed per month" description="Approved invoices, by month.">
           <BarList rows={money.byMonth.map((r) => ({ label: monthName(r.month), value: r.cents, text: formatMoney(r.cents) }))} />
           <ul className="mt-4 space-y-1 border-t border-slate-100 pt-3 text-sm text-slate-600">
             <li>
@@ -116,11 +116,11 @@ async function Dashboard() {
           </ul>
         </Card>
 
-        <Card title="Fees billed by matter type" description="Last 12 months and earlier, approved invoices only.">
+        <Card title="Fees billed by matter type" description="Approved invoices.">
           <BarList rows={Object.entries(MATTER_TYPES).map(([k, l]) => ({ label: l, value: money.byType[k] ?? 0, text: formatMoney(money.byType[k] ?? 0) }))} />
         </Card>
 
-        <Card title="Deadlines" description="Response deadlines due in the last 12 months (RFE, NOID, appeals, motions).">
+        <Card title="Deadlines" description="Response deadlines due in the last 12 months.">
           <Figures
             items={[
               { label: "Met on time", value: dl.onTime },
@@ -163,7 +163,7 @@ async function Dashboard() {
           </Table>
         </Card>
 
-        <Card title="Attorney approvals" description="Stages 2, 3, 5 and 6: days from reaching the stage to the attorney's approval.">
+        <Card title="Attorney approvals" description="Days from reaching the stage to approval.">
           <Figures
             items={[
               { label: "Approvals", value: approvals.approvals },
@@ -173,7 +173,7 @@ async function Dashboard() {
           />
         </Card>
 
-        <Card title="Clients" description="Client outbox messages, and decisions recorded.">
+        <Card title="Clients">
           <Figures
             items={[
               { label: "Messages sent", value: outbox.sent },
@@ -193,8 +193,7 @@ async function Dashboard() {
       </div>
 
       <p className="text-xs text-slate-500">
-        All the data behind these numbers can be downloaded from the Export page. Fees are earned fees from UOA OS invoices; trust (IOLTA) money is not
-        shown here.
+        Earned fees only (no trust money). The data is on the Export page.
       </p>
     </>
   );

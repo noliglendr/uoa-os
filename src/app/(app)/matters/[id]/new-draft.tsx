@@ -165,7 +165,7 @@ export function NewDraft({
       {stepB &&
         (!caseFacts ? (
           <p className="rounded-lg border border-gold-300 bg-gold-100/50 px-3 py-2 text-sm text-slate-700">
-            This draft sends case facts to the AI, so it needs “Case facts to the AI” on in Settings (D24, principal only). Made-up matters only until Frank decides D9.
+            This draft sends case facts to the AI. Turn on “Send case facts to the AI” in Settings first.
           </p>
         ) : (
           <div className="space-y-2">

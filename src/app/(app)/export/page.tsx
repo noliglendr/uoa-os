@@ -11,9 +11,9 @@ export const metadata: Metadata = { title: "Export" };
 export default function ExportPage() {
   return (
     <>
-      <PageHeader eyebrow="Firm · The firm owns its data" icon="download"
+      <PageHeader eyebrow="Firm" icon="download"
         title="Export"
-        description="The firm owns its data. Each file holds the full table and opens in Excel. Downloads are for the attorney and principal, and each one is recorded in the history."
+        description="Download any table as a CSV file that opens in Excel. Each download is logged."
       />
       <Suspense fallback={<Loading rows={4} />}>
         <Downloads />

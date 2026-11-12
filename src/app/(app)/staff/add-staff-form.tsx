@@ -17,7 +17,7 @@ export function AddStaffForm({ principal }: { principal: boolean }) {
         </p>
         <p className="font-mono text-base">{state.created.password}</p>
         <p>
-          They sign in at the app, set up their authenticator app, then change the password on the Account page.
+          They sign in, set up their authenticator app, then change the password.
         </p>
         <button type="button" onClick={() => window.location.reload()} className="underline">
           Done

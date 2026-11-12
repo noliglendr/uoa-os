@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Badge, Button, ErrorBanner, Hidden, Loading, PageHeader, letterBoxClass, letterRows } from "@/components/ui";
 import { ConfirmButton } from "@/components/confirm-button";
+import { Disclosure } from "@/components/disclosure";
 import { isAttorney, requireStaff } from "@/lib/session";
 import { formatDateTime } from "@/lib/labels";
 import { approveTemplate, saveTemplate } from "../actions";
@@ -14,10 +15,10 @@ export default function TemplatesPage({ searchParams }: PageProps<"/templates">)
   return (
     <>
       <PageHeader
-        eyebrow="Firm · Decision D19"
+        eyebrow="Firm"
         icon="mail"
         title="Templates"
-        description="The wording UOA OS uses for letters and client messages. Click a template to read it. The attorney approves each one; nothing is prepared from a template that is not approved."
+        description="Wording for letters and client messages. The attorney approves each one."
       />
       <Suspense fallback={null}>
         <ErrorBanner searchParams={searchParams} />
@@ -123,18 +124,17 @@ async function Templates() {
           <ul className="divide-y divide-slate-100">
             {rows.map((t) => (
               <li key={t.kind}>
-                <details className="group">
-                  <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
-                    <span aria-hidden className="text-slate-400 transition-transform group-open:rotate-90">
-                      ▸
-                    </span>
+                <Disclosure
+                  summary={
+                    <>
                     <span className="min-w-0 flex-1">
                       <span className="block font-medium text-slate-900">{t.label}</span>
                       <span className="block text-xs text-slate-500">{USED_FOR[t.kind] ?? ""}</span>
                     </span>
                     {t.attorney_approved ? <Badge tone="green">Approved</Badge> : <Badge tone="amber">Needs approval</Badge>}
-                  </summary>
-
+                    </>
+                  }
+                >
                   <div className="space-y-3 border-t border-slate-100 bg-slate-50/60 px-4 py-4">
                     <Preview body={t.body} />
                     <p className="text-xs text-slate-500">
@@ -157,23 +157,26 @@ async function Templates() {
                             {t.attorney_approved ? "Withdraw approval" : "Approve"}
                           </ConfirmButton>
                         </form>
-                        <details className="min-w-0 flex-1">
-                          <summary className="inline-flex cursor-pointer list-none rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
-                            Change wording
-                          </summary>
+                        <div className="min-w-0 flex-1">
+                          <Disclosure
+                            chevron={false}
+                            buttonClassName="inline-flex rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                            summary="Change wording"
+                          >
                           <form action={saveTemplate} className="mt-3 space-y-2">
                             <Hidden values={{ back: "/templates", table, kind: t.kind }} />
                             <textarea key={t.version} name="body" required rows={letterRows(t.body)} defaultValue={t.body} aria-label={`${t.label} wording`} className={letterBoxClass} />
                             <p className="text-xs text-slate-500">
-                              Keep client details as blanks in [SQUARE BRACKETS]. Saving new wording removes the approval: approve it again afterwards.
+                              Keep client details as [BLANKS]. Saving removes the approval: approve it again after.
                             </p>
                             <Button>Save wording</Button>
                           </form>
-                        </details>
+                          </Disclosure>
+                        </div>
                       </div>
                     )}
                   </div>
-                </details>
+                </Disclosure>
               </li>
             ))}
           </ul>

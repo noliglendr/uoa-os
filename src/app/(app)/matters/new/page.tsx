@@ -10,14 +10,14 @@ export const metadata: Metadata = { title: "New matter" };
 export default function NewMatterPage({ searchParams }: PageProps<"/matters/new">) {
   return (
     <>
-      <PageHeader eyebrow="Work · Stage 1 intake" icon="plus" title="New matter" description="Stage 1, intake: the matter type, urgency and each party for the conflict check." />
+      <PageHeader eyebrow="Work" icon="plus" title="New matter" description="Start a matter at intake." />
       <Suspense fallback={null}>
         <ErrorBanner searchParams={searchParams} />
       </Suspense>
       <Card title="Matter details">
         <form action={createMatter} className="grid max-w-2xl gap-5">
           <p className="rounded-lg border border-gold-300 bg-gold-100/60 px-3 py-2 text-sm text-slate-800">
-            Use synthetic codes and role labels only. No client names, A-numbers, receipt numbers or case facts.
+            Made-up codes and role words only: no client names or case numbers.
           </p>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Matter code" hint='For example "Matter D"'>

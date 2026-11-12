@@ -17,10 +17,10 @@ export default function InvoicesPage({ searchParams }: PageProps<"/invoices">) {
   return (
     <>
       <PageHeader
-        eyebrow="Work · Automation · D22, D23"
+        eyebrow="Work"
         icon="invoice"
         title="Invoices"
-        description="When a matter reaches a fee phase, UOA OS prepares an invoice draft. The attorney checks the amount and approves it. Staff enter it in the billing tool, which sends it and collects payment, and record the tool's invoice number here."
+        description="Drafts appear when a matter reaches a fee phase. The attorney approves; staff enter the invoice in the billing tool."
       />
       <Suspense fallback={null}>
         <ErrorBanner searchParams={searchParams} />
@@ -77,10 +77,10 @@ async function Invoices() {
         </p>
       )}
 
-      <Card title={`Drafts to approve (${drafts.length})`} description={attorney ? "Check the amount, then approve. Approval is logged with your name." : "Only the attorney sets amounts and approves."} flush>
+      <Card title={`Drafts to approve (${drafts.length})`} description={attorney ? undefined : "Only the attorney approves."} flush>
         {drafts.length === 0 ? (
           <div className="p-4">
-            <Empty>No drafts. A draft appears when a matter reaches a fee phase in the fee schedule below.</Empty>
+            <Empty>No drafts.</Empty>
           </div>
         ) : (
           <ul className="divide-y divide-slate-100">
@@ -115,7 +115,7 @@ async function Invoices() {
         )}
       </Card>
 
-      <Card title={`Approved: enter in the billing tool (${approved.length})`} description="Enter each invoice in the billing tool (it sends and collects), then record the tool's invoice number." flush>
+      <Card title={`Approved: enter in the billing tool (${approved.length})`} description="Enter each in the billing tool, then record its invoice number." flush>
         {approved.length === 0 ? (
           <div className="p-4">
             <Empty>Nothing waiting.</Empty>
@@ -193,8 +193,8 @@ function VoidForm({ id, code }: { id: string; code: string }) {
 function FeeSchedule({ rows, principal }: { rows: Row[]; principal: boolean }) {
   return (
     <Card
-      title="Fee schedule (D23)"
-      description="Which steps prepare an invoice draft, per matter type. Leave the amount empty to have the attorney enter it on each invoice. Only the principal changes the schedule; every change is logged."
+      title="Fee schedule"
+      description="Which steps prepare an invoice. Leave the amount empty to set it on each invoice."
       flush
     >
       <ul className="divide-y divide-slate-100">

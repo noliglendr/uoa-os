@@ -136,7 +136,7 @@ export default function MfaPage() {
               value={code}
               onChange={(e) => setCode(e.target.value)}
               aria-label="6-digit code"
-              className={`${inputClass} h-12 w-full text-center font-mono text-xl tracking-[0.4em]`}
+              className={`${inputClass} h-12 sm:h-12 w-full text-center font-mono text-xl sm:text-xl tracking-[0.4em]`}
             />
             {error && (
               <p role="alert" className="text-sm text-red-600">

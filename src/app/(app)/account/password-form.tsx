@@ -54,7 +54,7 @@ export function PasswordForm() {
     setStatus({ ok: "Password changed. Use it the next time you sign in." });
   }
 
-  const field = `${inputClass} h-10 w-full pr-10`;
+  const field = `${inputClass} h-10 sm:h-10 w-full pr-10`;
   return (
     <form onSubmit={onSubmit} className="space-y-5">
       <label className="block space-y-1.5">

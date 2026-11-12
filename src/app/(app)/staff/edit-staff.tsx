@@ -60,7 +60,7 @@ export function EditStaff({ id, name, email, role }: { id: string; name: string;
                 <label className="block space-y-1.5">
                   <span className="text-sm font-medium text-slate-700">Name</span>
                   <div className="flex gap-2">
-                    <input key={name} name="display_name" defaultValue={name} required className={`${inputClass} h-9 flex-1`} />
+                    <input key={name} name="display_name" defaultValue={name} required className={`${inputClass} h-9 sm:h-9 flex-1`} />
                     <Button variant="primary" className="h-9">
                       Save
                     </Button>
@@ -112,7 +112,7 @@ export function EditStaff({ id, name, email, role }: { id: string; name: string;
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-medium text-red-800">Remove from the system</p>
-                    <p className="text-xs text-slate-500">Only for accounts with no activity (a mistake or a test). Anyone with history stays: switch off their access instead.</p>
+                    <p className="text-xs text-slate-500">Only for unused accounts. For anyone else, switch off access.</p>
                   </div>
                   <ConfirmButton variant="danger" confirm={`Remove ${name} completely?
 

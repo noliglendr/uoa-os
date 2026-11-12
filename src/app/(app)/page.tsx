@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { Badge, Button, Card, Empty, HeroChip, Hidden, PageHeader, Stat, type Tone } from "@/components/ui";
+import { Badge, Button, Card, Empty, HeroChip, Hidden, PageHeader, Stat, inputClass, type Tone } from "@/components/ui";
 import { DashboardSkeleton } from "@/components/skeleton";
 import { LinkPending } from "@/components/link-pending";
 import { ConfirmButton } from "@/components/confirm-button";
+import { Disclosure } from "@/components/disclosure";
 import { Greeting } from "@/components/greeting";
 import { Icon } from "@/components/icons";
 import { buttonClass } from "@/components/styles";
@@ -12,7 +13,7 @@ import { requireStaff, isAttorney } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { daysBetween, describeDue, today } from "@/lib/deadlines";
 import { GATE_LABELS, MESSAGE_KINDS, ROLE_LABELS, STAGES, formatDate, formatMoney, label, stageName } from "@/lib/labels";
-import { approveGate, completeTask, updateDeadline } from "./actions";
+import { approveGate, approveInvoice, completeTask, reviewDraft, setInvoiceAmount, updateDeadline } from "./actions";
 import { buildSweep, type SweepData } from "./sweep/items";
 import { documentFollowups, receiptFollowups, stalledFollowups } from "@/lib/followups";
 
@@ -31,7 +32,13 @@ export default function Dashboard() {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = any;
 
-type Action = { kind: "gate"; stage: number; cycleId: string | null } | { kind: "verify"; deadlineId: string };
+type Action =
+  | { kind: "gate"; stage: number; cycleId: string | null }
+  | { kind: "verify"; deadlineId: string; ruleCode: string | null; due: string; raw: string | null }
+  | { kind: "draft"; draftId: string; body: string }
+  | { kind: "invoice"; invoiceId: string; amount: number | null; note: string | null };
+
+type Check = { item: string; ok: boolean };
 
 type WorkItem = {
   matterId: string;
@@ -52,16 +59,19 @@ const TONE_ORDER = { red: 0, amber: 1, blue: 2 } as const;
 async function DashboardContent() {
   // One database call for the whole screen, alongside the sign-in check.
   const supabase = await createClient();
-  const [{ staff }, { data, error }, { data: staffList }, { data: outboxRows }, { data: invoiceRows }, { data: docRows }, { data: overdueSetting }] = await Promise.all([
+  const [{ staff }, { data, error }, { data: staffList }, { data: outboxRows }, { data: invoiceRows }, { data: docRows }, { data: overdueSetting }, { data: draftRows }, { data: draftLabels }] = await Promise.all([
     requireStaff(),
     supabase.rpc("dashboard_data", {}, { get: true }),
     supabase.rpc("staff_page", {}, { get: true }),
     // Increment 4, Steps 2-4 (empty for roles that can't see them).
     supabase.from("client_messages").select("id, matter_id, kind").eq("status", "waiting").order("created_at"),
-    supabase.from("invoices").select("id, matter_id, label, amount_cents").eq("status", "draft").order("created_at"),
+    supabase.from("invoices").select("id, matter_id, label, amount_cents, note").eq("status", "draft").order("created_at"),
     // Increment 2: open document requests, for overdue documents.
     supabase.from("doc_requests").select("due_date, items:doc_request_items(item:checklist_items(id, matter_id, label, status, voided_at))").eq("status", "open"),
     supabase.from("settings").select("value").eq("key", "documents.overdue_days").maybeSingle(),
+    // AI drafts waiting for review, with their text, so the attorney can read and approve them here.
+    supabase.from("drafts").select("id, matter_id, kind, body").eq("status", "pending_review").order("created_at"),
+    supabase.from("draft_templates").select("kind, label"),
   ]);
   if (!staff) {
     return (
@@ -104,22 +114,42 @@ async function DashboardContent() {
     if (d.kind === "review") {
       work.push({ matterId: d.matter_id, title: d.title, detail: "Set a deadline or record “no deadline”", tone: "red", tab: "notices", due: d.due_date });
     } else if (!d.attorney_verified) {
-      work.push({ matterId: d.matter_id, title: `Verify deadline: ${d.title}`, detail: `Computed due date ${formatDate(d.due_date)}${d.rule_code ? ` (rule ${d.rule_code})` : ""}`, tone: "amber", tab: "overview", action: { kind: "verify", deadlineId: d.id }, due: d.due_date });
+      work.push({ matterId: d.matter_id, title: `Verify deadline: ${d.title}`, detail: `Due ${formatDate(d.due_date)}`, tone: "amber", tab: "overview", action: { kind: "verify", deadlineId: d.id, ruleCode: d.rule_code ?? null, due: d.due_date, raw: d.raw_due_date ?? null }, due: d.due_date });
     }
   }
   for (const i of data.drafts as Row[]) {
     work.push({ matterId: i.matter_id, title: `Review third-party draft: ${i.label}`, detail: "Before it goes out for signature", tone: "blue", tab: "filings", due: nextDue(i.matter_id) });
   }
-  for (const x of data.letter_drafts as Row[]) {
-    work.push({ matterId: x.matter_id, title: `Review AI draft: ${x.label}`, detail: "Nobody can use it until you approve it", tone: "blue", tab: "drafts", due: nextDue(x.matter_id) });
+  const draftLabel = new Map(((draftLabels ?? []) as Row[]).map((t) => [t.kind, t.label]));
+  if (draftRows) {
+    for (const x of draftRows as Row[]) {
+      work.push({ matterId: x.matter_id, title: `Review AI draft: ${draftLabel.get(x.kind) ?? x.kind}`, tone: "blue", tab: "drafts", action: { kind: "draft", draftId: x.id, body: x.body }, due: nextDue(x.matter_id) });
+    }
+  } else {
+    for (const x of data.letter_drafts as Row[]) {
+      work.push({ matterId: x.matter_id, title: `Review AI draft: ${x.label}`, tone: "blue", tab: "drafts", due: nextDue(x.matter_id) });
+    }
   }
   for (const f of data.untold as Row[]) {
     work.push({ matterId: f.matter_id, title: `Tell the client: ${f.form_type} ${f.decision}`, detail: "The attorney tells the client, not the system", tone: "red", tab: "filings" });
   }
   for (const i of (invoiceRows ?? []) as Row[]) {
-    work.push({ matterId: i.matter_id, title: `Approve invoice: ${i.label}`, detail: i.amount_cents == null ? "Enter the amount" : formatMoney(i.amount_cents), tone: "blue", tab: "overview", href: "/invoices" });
+    work.push({ matterId: i.matter_id, title: `Approve invoice: ${i.label}`, detail: i.amount_cents == null ? "Enter the amount" : formatMoney(i.amount_cents), tone: "blue", tab: "overview", href: "/invoices", action: { kind: "invoice", invoiceId: i.id, amount: i.amount_cents, note: i.note } });
   }
   work.sort((a, b) => TONE_ORDER[a.tone] - TONE_ORDER[b.tone] || (a.due ?? "9999").localeCompare(b.due ?? "9999"));
+
+  // What each stage approval needs, shown when the attorney opens the row.
+  const checks = new Map<string, Check[]>();
+  if (attorney) {
+    const gateItems = work.filter((w) => w.action?.kind === "gate");
+    const results = await Promise.all(
+      gateItems.map((w) => {
+        const a = w.action as Extract<Action, { kind: "gate" }>;
+        return supabase.rpc("exit_checks", { p_matter: w.matterId, p_cycle: a.cycleId });
+      }),
+    );
+    gateItems.forEach((w, n) => checks.set(`${w.matterId}|${(w.action as Extract<Action, { kind: "gate" }>).cycleId}`, (results[n].data ?? []) as Check[]));
+  }
 
   const upcoming = openDeadlines.filter((d) => daysBetween(now, d.due_date) <= 30);
   const dueThisWeek = openDeadlines.filter((d) => daysBetween(now, d.due_date) <= 7).length;
@@ -163,7 +193,7 @@ async function DashboardContent() {
   const summary =
     view === "attorney"
       ? work.length === 0
-        ? "Everything is up to date. Nothing is waiting for your approval."
+        ? "Everything is up to date."
         : `${plural(work.length, "item is", "items are")} waiting for your approval${nextDeadline ? `, and the next deadline is ${describeDue(nextDeadline.due_date, now)}` : ""}.`
       : view === "admin"
         ? `${plural(team.filter((p) => p.active).length, "person has", "people have")} access${noTwoStep.length ? `, and ${plural(noTwoStep.length, "has", "have")} not set up two-step sign-in yet` : ", all with two-step sign-in"}.`
@@ -207,7 +237,7 @@ async function DashboardContent() {
           <div id="approvals" className="-mb-5 scroll-mt-24" />
           <Card
             title={attorney ? "Needs your approval" : "Waiting for the attorney"}
-            description={attorney ? "Most urgent first. Every approval is permanent and logged with your name." : "Most urgent first. Only the attorney approves these; you can open each matter to follow it."}
+            description={attorney ? "Most urgent first." : "Most urgent first. Only the attorney approves these."}
             flush
           >
             {work.length === 0 ? (
@@ -220,44 +250,32 @@ async function DashboardContent() {
                   const m = byId.get(w.matterId);
                   const href = w.href ?? `/matters/${w.matterId}?tab=${w.tab}`;
                   return (
-                    <li key={i} className="flex flex-col gap-3 px-4 py-3 transition-colors hover:bg-slate-50/70 sm:flex-row sm:items-center">
-                      <div className="flex min-w-0 flex-1 gap-3">
-                        <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${TONE_DOT[w.tone]}`} aria-hidden />
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Link href={href} className="font-semibold text-navy-800 hover:underline">
-                              {m?.code}
-                            </Link>
-                            {m?.urgent && <Badge tone="red">Urgent</Badge>}
-                            <span className="text-sm text-slate-900">{w.title}</span>
-                          </div>
-                          <div className="mt-0.5 text-xs text-slate-500">
-                            {[m?.summary, w.detail].filter(Boolean).join(" · ")}
-                            {w.due && <> · next deadline {describeDue(w.due, now)}</>}
-                          </div>
+                    <li key={i}>
+                      <Disclosure
+                        summary={
+                          <span className="flex min-w-0 flex-1 gap-3">
+                            <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${TONE_DOT[w.tone]}`} aria-hidden />
+                            <span className="min-w-0">
+                              <span className="flex flex-wrap items-center gap-2">
+                                <strong className="text-navy-800">{m?.code}</strong>
+                                {m?.urgent && <Badge tone="red">Urgent</Badge>}
+                                <span className="text-sm text-slate-900">{w.title}</span>
+                              </span>
+                              <span className="mt-0.5 block text-xs text-slate-500">
+                                {[m?.summary, w.detail].filter(Boolean).join(" · ")}
+                                {w.due && <> · next deadline {describeDue(w.due, now)}</>}
+                              </span>
+                            </span>
+                          </span>
+                        }
+                      >
+                        <div className="space-y-3 border-t border-slate-100 bg-slate-50/60 px-4 py-4 sm:pl-11">
+                          <ApprovalPanel w={w} code={m?.code ?? ""} attorney={attorney} checks={checks} />
+                          <Link href={href} className="inline-flex items-center gap-1 text-sm font-medium text-navy-700 hover:underline">
+                            Open {w.href ? "the page" : "the matter"} <LinkPending />
+                          </Link>
                         </div>
-                      </div>
-                      <div className="flex shrink-0 gap-2 pl-5 sm:pl-0">
-                        {attorney && w.action?.kind === "gate" && (
-                          <form action={approveGate}>
-                            <Hidden values={{ back: "/", matter_id: w.matterId, stage: w.action.stage, cycle_id: w.action.cycleId }} />
-                            <ConfirmButton confirm={`${m?.code}: ${w.title}?\n\nThis approval is permanent and is logged with your name and the time.`}>
-                              <Icon name="check" /> Approve
-                            </ConfirmButton>
-                          </form>
-                        )}
-                        {attorney && w.action?.kind === "verify" && (
-                          <form action={updateDeadline}>
-                            <Hidden values={{ back: "/", deadline_id: w.action.deadlineId, field: "verify" }} />
-                            <ConfirmButton confirm={`${m?.code}: ${w.title}\n\nConfirm you checked this date against the notice and the rule. This is logged with your name.`}>
-                              <Icon name="check" /> Verify
-                            </ConfirmButton>
-                          </form>
-                        )}
-                        <Link href={href} className={buttonClass("secondary")}>
-                          Open <LinkPending />
-                        </Link>
-                      </div>
+                      </Disclosure>
                     </li>
                   );
                 })}
@@ -296,7 +314,7 @@ async function DashboardContent() {
   );
 
   const evidenceCard = (
-    <Card title="Evidence to collect" description="Checklist items still needed or requested, oldest first." flush>
+    <Card title="Evidence to collect" description="Oldest first." flush>
       {evidence.length === 0 ? (
         <div className="flex items-center gap-2 p-4 text-sm text-emerald-700">
           <Icon name="check" className="h-5 w-5" /> Nothing outstanding.
@@ -339,10 +357,10 @@ async function DashboardContent() {
   );
 
   const intakeCard = (
-    <Card title="Matters at intake" description="Stage 1: check conflicts for every party, then move the matter to engagement." flush>
+    <Card title="Matters at intake" description="Check conflicts, then move to engagement." flush>
       {atIntake.length === 0 ? (
         <div className="p-4">
-          <Empty>No matters at intake. Open one with “New matter”.</Empty>
+          <Empty>No matters at intake.</Empty>
         </div>
       ) : (
         <ul className="stagger divide-y divide-slate-100">
@@ -362,7 +380,7 @@ async function DashboardContent() {
   );
 
   const systemCard = (
-    <Card title="Staff and sign-in" description="Everyone must set up two-step sign-in before using real data." actions={<Link href="/staff" className="text-xs font-medium text-navy-700 hover:underline">Staff page →</Link>} flush>
+    <Card title="Staff and sign-in" actions={<Link href="/staff" className="text-xs font-medium text-navy-700 hover:underline">Staff page →</Link>} flush>
       <ul className="divide-y divide-slate-100">
         {team.map((p) => (
           <li key={p.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
@@ -453,7 +471,7 @@ async function DashboardContent() {
 
         <div className="space-y-5">
           {followups.length > 0 && (
-            <Card title={`Follow-ups (${followups.length})`} description="Late or stuck. The daily follow-up email lists these too." flush>
+            <Card title={`Follow-ups (${followups.length})`} description="Late or stuck." flush>
               <ul className="divide-y divide-slate-100">
                 {followups.map((f) => (
                   <li key={f.key}>
@@ -475,7 +493,7 @@ async function DashboardContent() {
           {outbox.length > 0 && (
             <Card
               title={`Client outbox (${outbox.length})`}
-              description="Prepared for clients. Staff send each one, then mark it sent."
+              description="Ready to send to clients."
               actions={<Link href="/outbox" className="text-xs font-medium text-navy-700 hover:underline">Open outbox →</Link>}
               flush
             >
@@ -581,5 +599,118 @@ function SweepMeter({ done, total }: { done: number; total: number }) {
       </div>
       <p className="text-xs text-slate-500">USCIS receipts and EOIR matters, checked online once a week.</p>
     </div>
+  );
+}
+
+/** What the attorney sees when an approval row is opened on My work. */
+function ApprovalPanel({ w, code, attorney, checks }: { w: WorkItem; code: string; attorney: boolean; checks: Map<string, Check[]> }) {
+  const a = w.action;
+  if (!a) return <p className="text-sm text-slate-600">{w.detail ?? "Open the matter to deal with this."}</p>;
+
+  if (a.kind === "gate") {
+    const list = checks.get(`${w.matterId}|${a.cycleId}`) ?? [];
+    return (
+      <>
+        {list.length > 0 && (
+          <ul className="space-y-1.5 text-sm">
+            {list.map((c) => (
+              <li key={c.item} className="flex items-start gap-2">
+                <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${c.ok ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-400"}`}>
+                  {c.ok ? <Icon name="check" className="h-3 w-3" /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}
+                </span>
+                <span className={c.ok ? "text-slate-600" : "text-slate-900"}>{c.item}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {attorney && (
+          <form action={approveGate} className="flex flex-wrap items-center gap-2">
+            <Hidden values={{ back: "/", matter_id: w.matterId, stage: a.stage, cycle_id: a.cycleId }} />
+            <input name="note" placeholder="Note (optional)" aria-label="Note" className={`${inputClass} w-64`} />
+            <ConfirmButton variant="primary" confirm={`${code}: ${w.title}?\n\nThis approval is permanent and is logged with your name and the time.`}>
+              <Icon name="check" /> Approve
+            </ConfirmButton>
+          </form>
+        )}
+      </>
+    );
+  }
+
+  if (a.kind === "verify") {
+    return (
+      <>
+        <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-3">
+          <div>
+            <dt className="text-xs text-slate-500">Due date</dt>
+            <dd className="font-medium text-slate-900">{formatDate(a.due)}</dd>
+          </div>
+          {a.raw && a.raw !== a.due && (
+            <div>
+              <dt className="text-xs text-slate-500">Before weekends and holidays</dt>
+              <dd className="text-slate-900">{formatDate(a.raw)}</dd>
+            </div>
+          )}
+          <div>
+            <dt className="text-xs text-slate-500">Rule</dt>
+            <dd className="text-slate-900">{a.ruleCode ?? "Date on the notice"}</dd>
+          </div>
+        </dl>
+        {attorney && (
+          <form action={updateDeadline}>
+            <Hidden values={{ back: "/", deadline_id: a.deadlineId, field: "verify" }} />
+            <ConfirmButton variant="primary" confirm={`${code}: ${w.title}\n\nConfirm you checked this date against the notice and the rule. This is logged with your name.`}>
+              <Icon name="check" /> Verify
+            </ConfirmButton>
+          </form>
+        )}
+      </>
+    );
+  }
+
+  if (a.kind === "draft") {
+    return (
+      <>
+        <div className="max-h-96 overflow-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm leading-relaxed text-slate-800">{a.body}</div>
+        {attorney && (
+          <div className="flex flex-wrap items-start gap-3">
+            <form action={reviewDraft}>
+              <Hidden values={{ back: "/", draft_id: a.draftId, decision: "approved" }} />
+              <ConfirmButton variant="primary" confirm={`${code}: approve this draft?\n\nThis approval is permanent and is logged with your name and the time.`}>
+                <Icon name="check" /> Approve
+              </ConfirmButton>
+            </form>
+            <form action={reviewDraft} className="flex min-w-0 flex-1 flex-wrap gap-2">
+              <Hidden values={{ back: "/", draft_id: a.draftId, decision: "changes_requested" }} />
+              <input name="note" required placeholder="What should change?" aria-label="What should change" className={`${inputClass} min-w-0 flex-1`} />
+              <Button>Ask for changes</Button>
+            </form>
+          </div>
+        )}
+        <p className="text-xs text-slate-500">To edit the text yourself, open the matter.</p>
+      </>
+    );
+  }
+
+  // Invoice
+  return attorney ? (
+    <div className="flex flex-wrap items-end gap-3">
+      <form key={`${a.amount}|${a.note}`} action={setInvoiceAmount} className="flex flex-wrap items-end gap-2">
+        <Hidden values={{ back: "/", invoice_id: a.invoiceId }} />
+        <label className="flex items-center gap-1 text-sm text-slate-600">
+          $
+          <input name="amount" required inputMode="decimal" defaultValue={a.amount != null ? (a.amount / 100).toFixed(2) : ""} placeholder="Amount" aria-label="Amount in dollars" className={`${inputClass} w-32`} />
+        </label>
+        <input name="note" defaultValue={a.note ?? ""} placeholder="Note (optional)" aria-label="Note" className={`${inputClass} w-48`} />
+        <Button>Save amount</Button>
+      </form>
+      <form action={approveInvoice}>
+        <Hidden values={{ back: "/", invoice_id: a.invoiceId }} />
+        <ConfirmButton variant="primary" disabled={a.amount == null} confirm={`${code}: approve this invoice for ${formatMoney(a.amount)}?\n\nThis is logged with your name and the time.`}>
+          <Icon name="check" /> Approve {a.amount != null ? formatMoney(a.amount) : ""}
+        </ConfirmButton>
+      </form>
+    </div>
+  ) : (
+    <p className="text-sm text-slate-600">{a.amount != null ? formatMoney(a.amount) : "No amount yet"} · waiting for the attorney</p>
   );
 }

@@ -13,11 +13,13 @@ const BUTTON = {
 } as const;
 
 export function buttonClass(variant: ButtonVariant = "secondary", extra = "") {
-  return `inline-flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 text-sm font-medium transition duration-150 active:scale-[0.97] disabled:active:scale-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-500 disabled:cursor-not-allowed disabled:opacity-40 ${BUTTON[variant]} ${extra}`;
+  // Taller on phones (easier to tap) unless the caller sets its own height.
+  const height = /(^|\s)h-\S+/.test(extra) ? "" : "h-10 sm:h-8";
+  return `inline-flex ${height} items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 text-sm font-medium transition duration-150 active:scale-[0.97] disabled:active:scale-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-500 disabled:cursor-not-allowed disabled:opacity-40 ${BUTTON[variant]} ${extra}`;
 }
 
 export const inputClass =
-  "h-8 rounded-md border border-slate-300 bg-white px-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-navy-500 focus:outline-none focus:ring-2 focus:ring-navy-100";
+  "h-10 sm:h-8 rounded-md border border-slate-300 bg-white px-2.5 text-base sm:text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-navy-500 focus:outline-none focus:ring-2 focus:ring-navy-100";
 
 /** Letter text boxes: tall enough to read the whole letter, in normal text. */
 export const letterBoxClass =

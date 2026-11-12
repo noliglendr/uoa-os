@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Account" };
 export default function AccountPage() {
   return (
     <>
-      <PageHeader eyebrow="You · Account" icon="user" title="Your account" description="Your profile, your password and how your sign-in is protected." />
+      <PageHeader eyebrow="You" icon="user" title="Your account" description="Your profile, password and sign-in." />
       <Suspense fallback={<Loading rows={3} />}>
         <Account />
       </Suspense>
@@ -73,7 +73,7 @@ async function Account() {
       </div>
 
       <div className="grid content-start gap-5 xl:grid-cols-[minmax(0,1fr)_18rem]">
-        <Card title="Change password" description="New staff: replace your temporary password here.">
+        <Card title="Change password" description="New staff: replace your temporary password.">
           <div className="max-w-md">
             <PasswordForm />
           </div>
@@ -86,8 +86,7 @@ async function Account() {
           <ul className="mt-3 space-y-3 text-sm text-slate-700">
             <Tip>Use a password you don&apos;t use anywhere else. A password manager helps.</Tip>
             <Tip>Never share your 6-digit code. The firm will never ask for it.</Tip>
-            <Tip>New phone? Ask the principal or an administrator to reset your two-step sign-in, then scan the new QR code.</Tip>
-            <Tip>Every change you make is logged with your name and the time.</Tip>
+            <Tip>New phone? Ask the principal to reset your two-step sign-in.</Tip>
           </ul>
         </section>
       </div>

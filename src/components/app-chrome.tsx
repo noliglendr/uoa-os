@@ -16,6 +16,7 @@ const TITLES: [RegExp, string, string, IconName][] = [
   [/^\/matters$/, "Work", "Matters", "briefcase"],
   [/^\/sweep/, "Work", "Weekly sweep", "refresh"],
   [/^\/rules/, "Firm", "Deadline rules", "scale"],
+  [/^\/help/, "Help", "How it works", "info"],
   [/^\/dashboard/, "Work", "Firm dashboard", "chart"],
   [/^\/outbox/, "Work", "Client outbox", "send"],
   [/^\/invoices/, "Work", "Invoices", "invoice"],
@@ -61,7 +62,7 @@ export function SearchBox() {
         type="search"
         placeholder="Search matters…"
         aria-label="Search matters"
-        className={`${inputClass} h-10 w-64 rounded-lg bg-slate-50 pl-9 pr-14 focus:bg-white xl:w-80`}
+        className={`${inputClass} h-10 sm:h-10 w-64 rounded-lg bg-slate-50 pl-9 pr-14 focus:bg-white xl:w-80`}
       />
       <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded border border-slate-200 bg-white px-1.5 py-0.5 font-sans text-[10px] font-medium text-slate-400">
         Ctrl K
@@ -100,6 +101,15 @@ const TABS: { href: string; label: string; icon: IconName }[] = [
   { href: "/rules", label: "Rules", icon: "scale" },
 ];
 
+/** The attorney and principal: approvals, the firm's numbers and invoices instead of staff chores. */
+const ATTORNEY_TABS: { href: string; label: string; icon: IconName }[] = [
+  { href: "/", label: "My work", icon: "home" },
+  { href: "/matters", label: "Matters", icon: "briefcase" },
+  { href: "/matters/new", label: "New", icon: "plus" },
+  { href: "/dashboard", label: "Firm", icon: "chart" },
+  { href: "/invoices", label: "Invoices", icon: "invoice" },
+];
+
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
   if (href === "/matters") return pathname === "/matters" || (pathname.startsWith("/matters/") && pathname !== "/matters/new");
@@ -107,14 +117,14 @@ function isActive(pathname: string, href: string) {
 }
 
 /** Phone: tab bar fixed to the bottom of the screen. */
-export function MobileTabBar() {
-  return <TabList pathname={usePathname()} />;
+export function MobileTabBar({ attorney = false }: { attorney?: boolean }) {
+  return <TabList pathname={usePathname()} attorney={attorney} />;
 }
 
-export function TabList({ pathname }: { pathname: string }) {
+export function TabList({ pathname, attorney = false }: { pathname: string; attorney?: boolean }) {
   return (
     <ul className="grid grid-cols-5">
-      {TABS.map((t) => {
+      {(attorney ? ATTORNEY_TABS : TABS).map((t) => {
         const active = isActive(pathname, t.href);
         const isNew = t.href === "/matters/new";
         return (

@@ -17,9 +17,9 @@ export const metadata: Metadata = { title: "Weekly sweep" };
 export default function SweepPage({ searchParams }: PageProps<"/sweep">) {
   return (
     <>
-      <PageHeader eyebrow="Work · Every week" icon="refresh"
+      <PageHeader eyebrow="Work" icon="refresh"
         title="Weekly status sweep"
-        description="Once a week, check each case online (USCIS case status, EOIR case information, court docket) and record the result. If something changed, log it as a notice on the matter so it gets a deadline."
+        description="Once a week, check each case online and record the result."
       />
       <Suspense fallback={null}>
         <ErrorBanner searchParams={searchParams} />
@@ -91,7 +91,7 @@ async function Sweep() {
         </Table>
       )}
       <p className="mt-3 text-xs text-slate-500">
-        Change found? Open the matter and log the notice (Notices → Log a notice), so it gets a deadline and is routed.
+        Something changed? Log it as a notice on the matter.
       </p>
     </Card>
   );

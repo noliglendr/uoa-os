@@ -6,6 +6,7 @@ import { formatDate, formatDateTime } from "@/lib/labels";
 import { verifyCode } from "./actions";
 import { loadSession } from "./session";
 import { UploadItem } from "./upload-item";
+import { Logo } from "@/components/logo";
 
 // The client's secure upload page (Increment 2; decision #31). Shows nothing
 // about the matter until the 6-digit code is entered.
@@ -28,7 +29,7 @@ export default function UploadPage({ params, searchParams }: PageProps<"/upload/
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-10">
       <div className="mb-6 flex items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-md bg-navy-900 text-sm font-bold text-gold-400">UOA</span>
+        <Logo size={40} />
         <div className="leading-tight">
           <p className="font-semibold text-slate-900">UOA Legal</p>
           <p className="text-sm text-slate-500">Secure document upload</p>

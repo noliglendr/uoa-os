@@ -41,7 +41,7 @@ export default function LoginPage() {
     window.location.replace("/mfa");
   }
 
-  const field = `${inputClass} h-11 w-full rounded-lg pl-10`;
+  const field = `${inputClass} h-11 sm:h-11 w-full rounded-lg pl-10`;
   return (
     <AuthShell title="Welcome back" subtitle="Sign in with your firm account. You'll confirm with your authenticator app next.">
       <form onSubmit={onSubmit} className="space-y-5">

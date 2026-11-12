@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { Badge, Button, ErrorBanner, Hidden, Loading, PageHeader, inputClass } from "@/components/ui";
 import { ConfirmButton } from "@/components/confirm-button";
+import { Disclosure } from "@/components/disclosure";
 import { isAttorney, requireStaff } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/labels";
@@ -15,10 +16,10 @@ export default function RulesPage({ searchParams }: PageProps<"/rules">) {
   return (
     <>
       <PageHeader
-        eyebrow="Firm · Decision D7"
+        eyebrow="Firm"
         icon="scale"
         title="Deadline rules"
-        description="UOA OS works out deadlines from these rules. The attorney checks and verifies each one before it is relied on. The date on a notice always wins over the rule."
+        description="Deadlines are worked out from these rules. The attorney verifies each one. A date on a notice always wins."
       />
       <Suspense fallback={null}>
         <ErrorBanner searchParams={searchParams} />
@@ -157,11 +158,9 @@ async function Rules({ searchParams }: { searchParams: PageProps<"/rules">["sear
           <ul className="divide-y divide-slate-100">
             {shown.map((r) => (
               <li key={r.code}>
-                <details className="group">
-                  <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
-                    <span aria-hidden className="text-slate-400 transition-transform group-open:rotate-90">
-                      ▸
-                    </span>
+                <Disclosure
+                  summary={
+                    <>
                     <span className="w-9 shrink-0 font-mono text-xs text-slate-500">{r.code}</span>
                     <span className="min-w-0 flex-1">
                       <span className="block font-medium text-slate-900">{r.label}</span>
@@ -169,8 +168,9 @@ async function Rules({ searchParams }: { searchParams: PageProps<"/rules">["sear
                     </span>
                     <Badge tone="gray">{r.forum}</Badge>
                     {r.attorney_verified ? <Badge tone="green">Verified</Badge> : <Badge tone="amber">Not verified</Badge>}
-                  </summary>
-
+                    </>
+                  }
+                >
                   <div className="space-y-4 border-t border-slate-100 bg-slate-50/60 px-4 py-4 sm:pl-16">
                     <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
                       <Item k="Window" v={r.days ? `${r.days} days` : "Date on the notice"} />
@@ -211,7 +211,7 @@ async function Rules({ searchParams }: { searchParams: PageProps<"/rules">["sear
                       !r.attorney_verified && <p className="text-xs text-slate-500">Only the attorney verifies rules.</p>
                     )}
                   </div>
-                </details>
+                </Disclosure>
               </li>
             ))}
           </ul>

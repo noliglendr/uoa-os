@@ -523,12 +523,12 @@ export function NoticesCard({ d }: { d: MatterData }) {
               <legend className="px-1 text-sm font-medium">Deadline (rule R1: every notice gets one)</legend>
               <DeadlineFields rules={d.rules} compact />
               {d.attorney ? (
-                <Field label='Or: "no deadline" (attorney only)' hint="Leave the rule and date empty and give the reason">
+                <Field label='Or: "no deadline" (attorney only)' hint="Give the reason">
                   <input name="no_deadline_reason" className={inputClass} />
                 </Field>
               ) : (
                 <p className="mt-2 text-xs text-slate-500">
-                  No deadline on this notice? Leave it empty: the attorney gets a review item due the next business day.
+                  No deadline? Leave it empty: the attorney reviews it the next business day.
                 </p>
               )}
             </fieldset>
@@ -644,7 +644,7 @@ export function FilingsCard({ d }: { d: MatterData }) {
                       fields={[
                         { name: "form_type", label: "Form", value: f.form_type, required: true },
                         { name: "forum", label: "Forum", type: "select", value: f.forum, options: FORUMS },
-                        { name: "ref_no", label: "Receipt / ref no.", value: f.ref_no, hint: "Made-up numbers only until real data is approved" },
+                        { name: "ref_no", label: "Receipt / ref no.", value: f.ref_no, hint: "Made-up numbers only for now" },
                         ...(f.filed_at
                           ? [
                               { name: "filing_method", label: "Filing method", value: f.filing_method },
@@ -1009,7 +1009,7 @@ export function VoidedCard({ d }: { d: MatterData }) {
   if (d.voided.length === 0) return null;
   const rows = [...d.voided].sort((a, b) => String(b.row.voided_at).localeCompare(String(a.row.voided_at)));
   return (
-    <Card title="Entered in error" description="Taken out of the work, kept in the record. These no longer count in any check.">
+    <Card title="Entered in error" description="Kept in the record, but no longer counted.">
       <ul className="-my-2 divide-y divide-slate-100 text-sm">
         {rows.map(({ kind, row }) => (
           <li key={row.id} className="py-2.5">
@@ -1029,7 +1029,7 @@ export function VoidedCard({ d }: { d: MatterData }) {
 
 export function HistoryCard({ d }: { d: MatterData }) {
   return (
-    <Card title="History" description={`${d.events.length} events, newest first. Nothing here can be edited or deleted.`}>
+    <Card title="History" description={`${d.events.length} events, newest first.`}>
       <ol className="relative ml-1 space-y-4 border-l border-slate-200 pl-5">
         {d.events.map((e) => (
           <li key={e.id} className="relative">
