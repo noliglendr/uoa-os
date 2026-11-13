@@ -1,0 +1,24 @@
+# Build settings for AWS Amplify Hosting (docs/aws-setup.md).
+# Amplify does not pass environment variables to the running Next.js server
+# unless they are written into .env.production at build time (AWS's documented
+# way). The file stays on the server; NEXT_PUBLIC_ values are public anyway.
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - nvm install 24
+        - nvm use 24
+        - npm ci
+    build:
+      commands:
+        - env | grep -e NEXT_PUBLIC_ -e SUPABASE_ -e EMAIL_ -e CRON_SECRET -e ANTHROPIC_ >> .env.production || true
+        - npm run build
+  artifacts:
+    baseDirectory: .next
+    files:
+      - "**/*"
+  cache:
+    paths:
+      - .next/cache/**/*
+      - node_modules/**/*

@@ -1,0 +1,29 @@
+# Daily reminder job for hosts without a built-in scheduler (AWS, DigitalOcean).
+# Calls /api/cron/escalations at 13:00 UTC (7 a.m. Central in winter), like vercel.json.
+# Does nothing until the repo secret APP_URL is set, so it never runs twice
+# alongside Vercel's cron: set APP_URL only when switching hosts, and remove the
+# cron from vercel.json (or the Vercel project) at the same time.
+name: Daily reminders
+
+on:
+  schedule:
+    - cron: "0 13 * * *"
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Call the reminder job
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ]; then
+            echo "APP_URL secret not set: skipping (Vercel's cron is still in charge)."
+            exit 0
+          fi
+          curl -fsS --max-time 330 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "${APP_URL%/}/api/cron/escalations"
