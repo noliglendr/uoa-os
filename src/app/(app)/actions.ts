@@ -165,7 +165,7 @@ export async function closeMatter(form: FormData) {
   await run(form, (db) => db.rpc("close_matter", { p_matter: text(form, "matter_id") }));
 }
 
-const MATTER_FLAGS = ["joint_consent", "closing_letter_sent", "urgent", "legal_hold"] as const;
+const MATTER_FLAGS = ["joint_consent", "closing_letter_sent", "urgent", "legal_hold", "test_data"] as const;
 
 export async function setMatterFlag(form: FormData) {
   const flag = text(form, "flag") as (typeof MATTER_FLAGS)[number];

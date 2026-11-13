@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
-import { ErrorBanner, HeroChip } from "@/components/ui";
+import { ErrorBanner, Hidden, HeroChip } from "@/components/ui";
+import { ConfirmButton } from "@/components/confirm-button";
 import { MatterSkeleton } from "@/components/skeleton";
 import { Icon } from "@/components/icons";
 import { requireStaff, isAttorney } from "@/lib/session";
@@ -24,6 +25,7 @@ import {
   type MatterData,
 } from "./sections";
 import { DraftsCard } from "./drafts-card";
+import { setMatterFlag } from "../../actions";
 import { DocumentsCard } from "./documents-card";
 import { MatterTabs } from "./matter-tabs";
 
@@ -119,6 +121,7 @@ async function Matter({
     docTemplateApproved: docTemplate.data?.attorney_approved === true,
     caseFacts: caseFacts.data?.value === true,
     canDocs: staff?.role === "paralegal" || isAttorney(staff),
+    principal: staff?.role === "principal",
     back: `/matters/${id}?tab=${tab}`,
   };
 
@@ -160,6 +163,7 @@ async function Matter({
                   {matter.urgent && <HeroChip icon="alert">Urgent</HeroChip>}
                   {matter.hard_deadline && <HeroChip icon="clock">Hard deadline</HeroChip>}
                   {matter.legal_hold && <HeroChip icon="shield">Legal hold</HeroChip>}
+                  {matter.test_data && <HeroChip icon="info">Test data</HeroChip>}
                   <HeroChip icon="user">{data.names[matter.attorney_id] ?? "No attorney"}</HeroChip>
                 </div>
               </div>
@@ -227,6 +231,7 @@ async function Matter({
 
         <aside className="order-first space-y-5 lg:order-none">
           <Summary d={data} now={now} />
+          <RecordCard d={data} />
         </aside>
       </div>
     </>
@@ -300,6 +305,51 @@ function Summary({ d, now }: { d: MatterData; now: string }) {
       <Row label="Clients">{clients}</Row>
       <Row label="Filings">{d.filings.length}</Row>
       <Row label="Opened">{formatDate(m.created_at)}</Row>
+    </section>
+  );
+}
+
+/**
+ * The file itself (decision #36): legal hold (the attorney; it stops the file
+ * being destroyed after the retention period, D8) and the test-data mark (the
+ * principal; test matters stay out of the Firm dashboard).
+ */
+function RecordCard({ d }: { d: MatterData }) {
+  const m = d.matter;
+  const ids = { back: d.back, matter_id: m.id };
+  return (
+    <section className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white text-sm shadow-sm">
+      <h2 className="px-4 py-3 text-sm font-semibold text-slate-900">Record</h2>
+      <div className="space-y-2 px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-slate-500">Legal hold</span>
+          <span className="font-medium text-slate-900">{m.legal_hold ? "On" : "Off"}</span>
+        </div>
+        <p className="text-xs text-slate-500">A file on legal hold is never destroyed, even after the retention period.</p>
+        {d.attorney && (
+          <form action={setMatterFlag}>
+            <Hidden values={{ ...ids, flag: "legal_hold", value: String(!m.legal_hold) }} />
+            <ConfirmButton variant="secondary" confirm={m.legal_hold ? `Release the legal hold on ${m.code}?` : `Place ${m.code} on legal hold? This is logged with your name.`}>
+              <Icon name="shield" /> {m.legal_hold ? "Release legal hold" : "Place on legal hold"}
+            </ConfirmButton>
+          </form>
+        )}
+      </div>
+      <div className="space-y-2 px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-slate-500">Test data</span>
+          <span className="font-medium text-slate-900">{m.test_data ? "Yes (made up)" : "No (real work)"}</span>
+        </div>
+        <p className="text-xs text-slate-500">Test matters are left out of the Firm dashboard.</p>
+        {d.principal && (
+          <form action={setMatterFlag}>
+            <Hidden values={{ ...ids, flag: "test_data", value: String(!m.test_data) }} />
+            <ConfirmButton variant="secondary" confirm={m.test_data ? `Count ${m.code} as real work on the Firm dashboard?` : `Mark ${m.code} as test data? It leaves the Firm dashboard.`}>
+              {m.test_data ? "Mark as real work" : "Mark as test data"}
+            </ConfirmButton>
+          </form>
+        )}
+      </div>
     </section>
   );
 }

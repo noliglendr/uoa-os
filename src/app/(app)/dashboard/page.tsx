@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 import { Card, Loading, NotForYourRole, PageHeader, Stat, Table, Td } from "@/components/ui";
 import { requireStaff } from "@/lib/session";
@@ -14,7 +15,7 @@ export const metadata: Metadata = { title: "Firm dashboard" };
 // Firm dashboard (Phase 1 brief, capability 7; decision #30): revenue and KPIs
 // for the principal. "Where am I needed" stays on My work. Numbers only, no
 // client data. Earned fees only: trust (IOLTA) money is never shown here.
-export default function FirmDashboardPage() {
+export default function FirmDashboardPage({ searchParams }: PageProps<"/dashboard">) {
   return (
     <>
       <PageHeader
@@ -24,7 +25,7 @@ export default function FirmDashboardPage() {
         description="How the firm is doing over the last 12 months."
       />
       <Suspense fallback={<Loading />}>
-        <Dashboard />
+        <Dashboard searchParams={searchParams} />
       </Suspense>
     </>
   );
@@ -33,7 +34,9 @@ export default function FirmDashboardPage() {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = any;
 
-async function Dashboard() {
+async function Dashboard({ searchParams }: { searchParams: PageProps<"/dashboard">["searchParams"] }) {
+  // Test matters (made-up data, decision #36) are left out unless asked for.
+  const withTest = (await searchParams).test === "include";
   const { supabase, staff } = await requireStaff();
   if (!staff || !["principal", "attorney", "administrator"].includes(staff.role)) {
     return <NotForYourRole who="the attorney, the principal and administrators" />;
@@ -55,8 +58,8 @@ async function Dashboard() {
   };
   // Optional tables (a later migration not applied yet) read as empty.
   const optional = (query: () => Query) => all(query).catch(() => [] as Row[]);
-  const [allMatters, events, deadlines, filings, gates, messages, invoices, setting, receipts] = await Promise.all([
-    all(() => supabase.from("matters").select("id, created_at, status, matter_type").order("id")),
+  const [everyMatter, allEvents, allDeadlines, allFilings, allGates, allMessages, allInvoices, setting, allReceipts] = await Promise.all([
+    all(() => supabase.from("matters").select("id, created_at, status, matter_type, test_data").order("id")),
     all(() =>
       supabase
         .from("event_log")
@@ -64,15 +67,21 @@ async function Dashboard() {
         .in("event_type", ["matter.stage_changed", "matter.closed"])
         .order("id"),
     ),
-    all(() => supabase.from("deadlines").select("kind, status, due_date, completed_at, voided_at").order("id")),
-    all(() => supabase.from("filings").select("filed_at, receipt_logged_at, decision, voided_at").order("id")),
+    all(() => supabase.from("deadlines").select("matter_id, kind, status, due_date, completed_at, voided_at").order("id")),
+    all(() => supabase.from("filings").select("matter_id, filed_at, receipt_logged_at, decision, voided_at").order("id")),
     all(() => supabase.from("gates").select("matter_id, stage, cycle_id, approved_at").order("id")),
-    optional(() => supabase.from("client_messages").select("status, created_at, sent_at").order("id")),
-    optional(() => supabase.from("invoices").select("status, amount_cents, approved_at, sent_at, matter:matters(matter_type)").order("id")),
+    optional(() => supabase.from("client_messages").select("matter_id, status, created_at, sent_at").order("id")),
+    optional(() => supabase.from("invoices").select("matter_id, status, amount_cents, approved_at, sent_at, matter:matters(matter_type)").order("id")),
     supabase.from("settings").select("value").eq("key", "followup.receipt_business_days").maybeSingle(),
-    all(() => supabase.from("notices").select("received_on, logged_at, voided_at").eq("notice_type", "receipt").order("id")),
+    all(() => supabase.from("notices").select("matter_id, received_on, logged_at, voided_at").eq("notice_type", "receipt").order("id")),
   ]);
 
+  const testIds = new Set(everyMatter.filter((m) => m.test_data).map((m) => m.id));
+  const real = <T extends { matter_id?: string | null }>(rows: T[]) => (withTest ? rows : rows.filter((r) => !testIds.has(r.matter_id ?? "")));
+  const allMatters = withTest ? everyMatter : everyMatter.filter((m) => !m.test_data);
+  const [events, deadlines, filings, gates, messages, invoices, receipts] = [
+    real(allEvents), real(allDeadlines), real(allFilings), real(allGates), real(allMessages), real(allInvoices), real(allReceipts),
+  ];
   const stageEvents = events
     .filter((e) => e.event_type === "matter.stage_changed")
     .map((e) => ({ matter_id: e.matter_id, occurred_at: e.occurred_at, from: Number(e.payload.from), to: Number(e.payload.to) }));
@@ -95,6 +104,21 @@ async function Dashboard() {
 
   return (
     <>
+      {testIds.size > 0 && (
+        <p className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-600">
+          {withTest ? (
+            <>
+              Including {testIds.size} test matter{testIds.size === 1 ? "" : "s"} (made-up data).{" "}
+              <Link href="/dashboard" className="font-medium text-navy-700 hover:underline">Show real work only</Link>
+            </>
+          ) : (
+            <>
+              {testIds.size} test matter{testIds.size === 1 ? " is" : "s are"} left out (made-up data).{" "}
+              <Link href="/dashboard?test=include" className="font-medium text-navy-700 hover:underline">Include them</Link>
+            </>
+          )}
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Open matters" value={open.length} hint={`${allMatters.length} in total`} />
         <Stat label="Deadlines met on time" value={pct(dl.rate)} tone={dl.rate === null ? "gray" : dl.rate === 100 ? "green" : "red"} hint={`${dl.onTime} of ${dl.counted} response deadlines`} />

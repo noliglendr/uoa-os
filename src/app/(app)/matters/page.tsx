@@ -40,7 +40,7 @@ async function MatterList({ searchParams }: { searchParams: Promise<Record<strin
   };
   const { supabase } = await requireStaff();
   const [{ data: matters }, { data: deadlines }, { data: gates }] = await Promise.all([
-    supabase.from("matters").select("id, code, summary, matter_type, status, stage, urgent").order("code"),
+    supabase.from("matters").select("id, code, summary, matter_type, status, stage, urgent, test_data").order("code"),
     supabase.from("deadlines").select("matter_id, title, due_date, kind").eq("status", "open").order("due_date"),
     supabase.from("gates").select("matter_id, stage").is("cycle_id", null),
   ]);
@@ -117,6 +117,7 @@ async function MatterList({ searchParams }: { searchParams: Promise<Record<strin
                       <span className="flex flex-wrap items-center gap-2">
                         <strong className="text-navy-800 group-hover:underline">{m.code}</strong>
                         {m.urgent && <Badge tone="red">Urgent</Badge>}
+                        {m.test_data && <Badge tone="gray">Test</Badge>}
                         {isOpen(m) && needs(m) && <Badge tone="gold">Needs the attorney</Badge>}
                         <LinkPending className="h-3 w-3" />
                       </span>

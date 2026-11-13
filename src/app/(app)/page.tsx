@@ -59,7 +59,7 @@ const TONE_ORDER = { red: 0, amber: 1, blue: 2 } as const;
 async function DashboardContent() {
   // One database call for the whole screen, alongside the sign-in check.
   const supabase = await createClient();
-  const [{ staff }, { data, error }, { data: staffList }, { data: outboxRows }, { data: invoiceRows }, { data: docRows }, { data: overdueSetting }, { data: draftRows }, { data: draftLabels }] = await Promise.all([
+  const [{ staff }, { data, error }, { data: staffList }, { data: outboxRows }, { data: invoiceRows }, { data: docRows }, { data: overdueSetting }, { data: draftRows }, { data: draftLabels }, { data: closedRows }, { data: closings }, { data: keepYears }] = await Promise.all([
     requireStaff(),
     supabase.rpc("dashboard_data", {}, { get: true }),
     supabase.rpc("staff_page", {}, { get: true }),
@@ -72,6 +72,10 @@ async function DashboardContent() {
     // AI drafts waiting for review, with their text, so the attorney can read and approve them here.
     supabase.from("drafts").select("id, matter_id, kind, body").eq("status", "pending_review").order("created_at"),
     supabase.from("draft_templates").select("kind, label"),
+    // Retention (D8): closed files not on legal hold, with their closing date.
+    supabase.from("matters").select("id").eq("status", "closed").eq("legal_hold", false),
+    supabase.from("event_log").select("matter_id, occurred_at").eq("event_type", "matter.closed"),
+    supabase.from("settings").select("value").eq("key", "retention.years_after_close").maybeSingle(),
   ]);
   if (!staff) {
     return (
@@ -134,7 +138,19 @@ async function DashboardContent() {
     work.push({ matterId: f.matter_id, title: `Tell the client: ${f.form_type} ${f.decision}`, detail: "The attorney tells the client, not the system", tone: "red", tab: "filings" });
   }
   for (const i of (invoiceRows ?? []) as Row[]) {
-    work.push({ matterId: i.matter_id, title: `Approve invoice: ${i.label}`, detail: i.amount_cents == null ? "Enter the amount" : formatMoney(i.amount_cents), tone: "blue", tab: "overview", href: "/invoices", action: { kind: "invoice", invoiceId: i.id, amount: i.amount_cents, note: i.note } });
+    work.push({ matterId: i.matter_id, title: `Approve invoice: ${i.label}`, detail: i.amount_cents == null ? "Enter the amount" : formatMoney(i.amount_cents), tone: "blue", tab: "overview", href: "/invoices?view=approve", action: { kind: "invoice", invoiceId: i.id, amount: i.amount_cents, note: i.note } });
+  }
+  // Retention review (D8): never deleted automatically; the attorney reviews
+  // each closed file once its retention period has passed.
+  const years = Number(keepYears?.value ?? 7);
+  const closedOn = new Map(((closings ?? []) as Row[]).map((e) => [e.matter_id, String(e.occurred_at).slice(0, 10)]));
+  for (const c of (closedRows ?? []) as Row[]) {
+    const closed = closedOn.get(c.id);
+    if (!closed) continue;
+    const reviewFrom = `${Number(closed.slice(0, 4)) + years}${closed.slice(4)}`;
+    if (reviewFrom <= now) {
+      work.push({ matterId: c.id, title: "Retention review", detail: `Closed ${formatDate(closed)}; kept ${years} years. Decide: keep, place on legal hold, or destroy under firm policy (never automatic)`, tone: "blue", tab: "overview", due: null });
+    }
   }
   work.sort((a, b) => TONE_ORDER[a.tone] - TONE_ORDER[b.tone] || (a.due ?? "9999").localeCompare(b.due ?? "9999"));
 

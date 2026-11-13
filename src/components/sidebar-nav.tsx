@@ -17,7 +17,7 @@ const ATTORNEYS = ["principal", "attorney"];
 
 /**
  * The attorney and principal see their daily pages first; staff chores and
- * firm setup are folded away. Other roles see their own work first.
+ * firm setup can be folded away. Other roles see their own work first.
  * "New matter" is the button at the top of every page.
  */
 function sectionsFor(role?: string): Section[] {
@@ -76,17 +76,15 @@ export function NavList({ pathname, role }: { pathname: string; role?: string })
   );
 }
 
-/** A group that folds away; it opens by itself when one of its pages is open. */
+/** A group that starts open on every page load; its title folds it away. */
 function Folded({ section, pathname }: { section: Section; pathname: string }) {
-  const here = section.items.some((i) => isActive(pathname, i.href));
-  const [choice, setChoice] = useState<boolean | null>(null);
-  const open = choice ?? here;
+  const [open, setOpen] = useState(true);
   return (
     <div>
       <button
         type="button"
         aria-expanded={open}
-        onClick={() => setChoice(!open)}
+        onClick={() => setOpen(!open)}
         className="flex w-full items-center gap-2 rounded-md px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-navy-300 hover:text-white"
       >
         <span className="flex-1 text-left">{section.title}</span>

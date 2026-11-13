@@ -387,5 +387,20 @@ end $$;
 set constraints all immediate;
 set constraints all deferred;
 
+-- Closed files (decision #36): only the attorney places a legal hold, and
+-- nothing else on a closed matter changes. Only the principal marks test data.
+reset role;
+set local role authenticated;
+select pg_temp.b();
+select pg_temp.expect_error($$update public.matters set legal_hold = true where code = 'Matter A'$$, '42501');
+select pg_temp.expect_error($$update public.matters set test_data = true where code = 'Matter A'$$, '42501');
+select pg_temp.a();
+update public.matters set legal_hold = true where code = 'Matter A';
+update public.matters set test_data = true where code = 'Matter A';
+select pg_temp.expect_error($$update public.matters set summary = 'Changed after closing' where code = 'Matter A'$$, '23514');
+do $$ begin
+  assert (select legal_hold and test_data from public.matters where code = 'Matter A'), 'hold and test mark set on a closed matter';
+end $$;
+
 select 'E2E TESTS PASSED';
 rollback;

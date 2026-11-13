@@ -91,7 +91,17 @@ export type MatterData = {
   caseFacts: boolean;
   /** Attorney, principal or paralegal: open, review and request files (D16). */
   canDocs: boolean;
+  /** The principal: marks matters as test data. */
+  principal: boolean;
   back: string;
+};
+
+// What the attorney's record at each gate should say (framework; redline 14).
+const GATE_NOTE_HINTS: Record<number, string> = {
+  2: "Retainer: scope, fee phases, who does what",
+  3: "Memo: pathway, risks, evidence plan, client duties (travel advisory, AR-11 within 10 days)",
+  5: "Final review done; signatures collected",
+  6: "Signed; filing method",
 };
 
 function Inline({ action, children, values }: { action: (f: FormData) => Promise<void>; values: Record<string, string | number | null | undefined>; children: ReactNode }) {
@@ -189,7 +199,12 @@ export function NextStepCard({ d }: { d: MatterData }) {
                 <form action={approveGate} className="space-y-2 rounded-lg border border-gold-300 bg-gold-100/50 p-3">
                   <p className="text-sm font-medium text-slate-900">Your approval is needed</p>
                   <Hidden values={{ ...ids, stage: m.stage }} />
-                  <input name="note" placeholder="Note (optional)" className={`${inputClass} w-full`} />
+                  <input
+                    name="note"
+                    aria-label="Approval note"
+                    placeholder={GATE_NOTE_HINTS[m.stage] ?? "Note (optional)"}
+                    className={`${inputClass} w-full`}
+                  />
                   <ConfirmButton
                     confirm={`${m.code}: ${GATE_LABELS[m.stage]}?\n\nThis approval is permanent and is logged with your name and the time.`}
                     className="w-full"
