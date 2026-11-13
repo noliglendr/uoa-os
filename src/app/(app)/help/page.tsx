@@ -37,7 +37,7 @@ const STEPS: { icon: IconName; title: string; text: string; href: string; link: 
   {
     icon: "chart",
     title: "Check the firm",
-    text: "The Firm dashboard shows fees, deadlines met and how long matters take. A short email each business morning tells you if anything needs you.",
+    text: "The Firm dashboard shows fees, deadlines met and how long matters take.",
     href: "/dashboard",
     link: "Firm dashboard",
   },

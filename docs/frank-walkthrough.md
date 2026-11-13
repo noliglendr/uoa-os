@@ -10,7 +10,6 @@
 
 1. Make sure Frank can sign in and has two-step sign-in set up.
 2. Put something on My work: leave one stage approval, one deadline to verify, one AI draft and one invoice draft waiting (Matter A or C).
-3. Check that the morning email arrived on a business day. If not, show him the example in this file instead.
 
 ## The walkthrough
 
@@ -23,25 +22,6 @@
 | 20–24 min | Opens the **Firm dashboard**, then **Invoices**. | Fees and deadlines met, per month. |
 | 24–27 min | On his **phone**: signs in, opens My work, approves one item. | Bottom tabs: My work, Matters, New, Firm, Invoices. |
 | 27–30 min | Asks questions. You go through the D7 and D9 decisions that only he can make. | D7: verify the deadline rules (Firm setup → Deadline rules → Not verified). D9: when real client data may be used. |
-
-## The morning email (example)
-
-```
-Subject: [UOA OS] 2026-11-16: 3 items need you · 1 deadline in 7 days
-
-Good morning.
-
-NEEDS YOU
-- 1 stage approval
-- 2 invoices to approve
-
-DEADLINES IN THE NEXT 7 DAYS
-- Matter A: RFE response, due in 4 days (2026-11-20)
-
-Open My work: https://uoa-os.vercel.app/
-```
-
-It is sent on business days only, to the principal and attorneys, and only when something needs them or a deadline is within 7 days.
 
 ## Notes (fill in during the meeting)
 
