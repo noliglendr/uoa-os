@@ -59,8 +59,8 @@ async function Invoices({ searchParams }: { searchParams: PageProps<"/invoices">
   const drafts = all.filter((i) => i.status === "draft").reverse(); // oldest first
   const approved = all.filter((i) => i.status === "approved").reverse();
   const done = all.filter((i) => i.status === "sent" || i.status === "void");
-  // Open on the list that needs action: approvals, then billing entry, then the fee schedule.
-  const fallback: View = drafts.length ? "approve" : approved.length ? "enter" : "fees";
+  // The fee schedule opens first (Noli, Nov 12); the cards show what waits elsewhere.
+  const fallback: View = "fees";
   const view: View = typeof raw === "string" && (VIEWS as readonly string[]).includes(raw) ? (raw as View) : fallback;
   const backOf = (v: View) => filterHref("/invoices", { view: v }, { view: fallback });
   const month = today().slice(0, 7);
