@@ -37,11 +37,11 @@ export default function NewMatterPage({ searchParams }: PageProps<"/matters/new"
             <input name="summary" required className={inputClass} />
           </Field>
           <div className="flex flex-wrap gap-6 text-sm">
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="urgent" className="h-4 w-4 accent-navy-800" /> Urgent
+            <label className="flex min-h-10 items-center gap-2">
+              <input type="checkbox" name="urgent" className="h-5 w-5 accent-navy-800" /> Urgent
             </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="hard_deadline" className="h-4 w-4 accent-navy-800" /> Hard deadline already running
+            <label className="flex min-h-10 items-center gap-2">
+              <input type="checkbox" name="hard_deadline" className="h-5 w-5 accent-navy-800" /> Hard deadline already running
             </label>
           </div>
           <p className="text-xs text-slate-500">

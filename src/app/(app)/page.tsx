@@ -442,8 +442,8 @@ async function DashboardContent() {
         description={summary}
         meta={
           <>
-            <HeroChip icon="briefcase">{open.length} open matters</HeroChip>
-            <HeroChip icon="clock">{upcoming.length} deadlines in 30 days</HeroChip>
+            <HeroChip icon="briefcase">{open.length} open matter{open.length === 1 ? "" : "s"}</HeroChip>
+            <HeroChip icon="clock">{upcoming.length} deadline{upcoming.length === 1 ? "" : "s"} in 30 days</HeroChip>
             {view !== "intake" && (
               <HeroChip icon="refresh">
                 Sweep {sweep.items.length - sweep.due.length}/{sweep.items.length} done

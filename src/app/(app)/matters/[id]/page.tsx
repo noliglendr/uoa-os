@@ -231,8 +231,14 @@ async function Matter({
 
         <aside className="order-first space-y-5 lg:order-none">
           <Summary d={data} now={now} />
-          <RecordCard d={data} />
+          {/* Wide screens: beside the work. Phones: below it (rarely used). */}
+          <div className="hidden lg:block">
+            <RecordCard d={data} />
+          </div>
         </aside>
+        <div className="lg:hidden">
+          <RecordCard d={data} />
+        </div>
       </div>
     </>
   );

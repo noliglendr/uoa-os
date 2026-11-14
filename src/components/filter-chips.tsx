@@ -26,7 +26,7 @@ export function FilterChips({
             href={href(o.value)}
             scroll={false}
             aria-current={on ? "true" : undefined}
-            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ring-1 transition ${
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm sm:py-1 font-medium ring-1 transition ${
               on ? "bg-navy-800 text-white ring-navy-800" : "bg-white text-slate-700 ring-slate-300 hover:bg-slate-50"
             }`}
           >

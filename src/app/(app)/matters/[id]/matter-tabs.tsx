@@ -30,7 +30,7 @@ export function MatterTabs({ tabs, initial, panels }: { tabs: MatterTab[]; initi
 
   return (
     <>
-      <nav className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0" aria-label="Matter sections">
+      <nav className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden" aria-label="Matter sections">
         <ul className="flex min-w-max gap-1 border-b border-slate-200">
           {tabs.map((t) => {
             const active = t.id === tab;

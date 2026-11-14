@@ -199,7 +199,7 @@ function Editor({ control, value, label }: { control: Control; value: any; label
           {Object.entries(control.options).map(([v, l]) => (
             <label
               key={v}
-              className="cursor-pointer rounded-full px-3 py-1 text-sm text-slate-600 ring-1 ring-slate-300 transition has-[:checked]:bg-navy-800 has-[:checked]:text-white has-[:checked]:ring-navy-800 has-[:focus-visible]:ring-2"
+              className="cursor-pointer rounded-full px-3 py-2 text-sm sm:py-1 text-slate-600 ring-1 ring-slate-300 transition has-[:checked]:bg-navy-800 has-[:checked]:text-white has-[:checked]:ring-navy-800 has-[:focus-visible]:ring-2"
             >
               <input type="checkbox" name="value" value={v} defaultChecked={(value as string[]).includes(v)} className="sr-only" />
               {l}

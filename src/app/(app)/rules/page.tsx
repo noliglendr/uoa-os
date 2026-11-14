@@ -88,7 +88,7 @@ async function Rules({ searchParams }: { searchParams: PageProps<"/rules">["sear
   };
   const back = href(f);
   const chip = (active: boolean) =>
-    `inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ring-1 ${
+    `inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm sm:py-1 font-medium ring-1 ${
       active ? "bg-navy-800 text-white ring-navy-800" : "bg-white text-slate-700 ring-slate-300 hover:bg-slate-50"
     }`;
 

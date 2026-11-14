@@ -343,9 +343,15 @@ do $$ begin perform pg_temp.advance_to('Matter C', 10); exception when others th
 update public.deadlines set status = 'met' where matter_id = pg_temp.m('Matter C') and status = 'open' and kind <> 'review';
 update public.appearances set status = 'closed' where matter_id = pg_temp.m('Matter C');
 update public.matters set closing_letter_sent = true where code = 'Matter C';
+-- A draft still waiting at closing is withdrawn, not left on the attorney's list.
+select public.create_draft(pg_temp.m('Matter C'), 'closing_letter', null, 'Dear [CLIENT NAME]', 'test');
 select pg_temp.a();
 do $$ begin perform public.close_matter(pg_temp.m('Matter C')); exception when others then
   raise exception 'Matter C could not close: % (failing: %)', sqlerrm, pg_temp.closing('Matter C'); end $$;
+do $$ begin
+  assert not exists (select 1 from public.drafts where matter_id = pg_temp.m('Matter C') and status = 'pending_review'), 'no draft left waiting on a closed matter';
+  assert (select review_note from public.drafts where matter_id = pg_temp.m('Matter C') and kind = 'closing_letter') = 'Not reviewed: the matter was closed', 'the reason is kept';
+end $$;
 
 -- R1 is checked when each save ends (deferred); check every notice so far.
 set constraints all immediate;
