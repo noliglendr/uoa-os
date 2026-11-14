@@ -120,10 +120,7 @@ function Brand({ compact }: { compact?: boolean }) {
   return (
     <Link href="/" className="flex items-center gap-3">
       <Logo size={36} />
-      <span className="leading-tight">
-        <span className={`block text-sm font-semibold ${compact ? "text-navy-900" : "text-white"}`}>UOA Legal</span>
-        <span className={`block text-xs ${compact ? "text-slate-500" : "text-navy-300"}`}>Firm OS</span>
-      </span>
+      <span className={`text-sm font-semibold leading-tight ${compact ? "text-navy-900" : "text-white"}`}>UOA Legal</span>
     </Link>
   );
 }
