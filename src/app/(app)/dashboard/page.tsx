@@ -229,12 +229,12 @@ function BarList({ rows }: { rows: { label: string; value: number; text: string 
   return (
     <ul className="space-y-1.5">
       {rows.map((r) => (
-        <li key={r.label} title={`${r.label}: ${r.text}`} className="grid grid-cols-[minmax(0,9rem)_1fr_auto] items-center gap-3 rounded px-1 text-sm hover:bg-slate-50">
+        <li key={r.label} title={`${r.label}: ${r.text}`} className="grid grid-cols-[minmax(0,9rem)_1fr_auto] items-center gap-3 max-sm:grid-cols-[minmax(0,6.5rem)_1fr_auto] max-sm:gap-2 rounded px-1 text-sm hover:bg-slate-50">
           <span className="truncate text-slate-600">{r.label}</span>
           <span className="h-3 rounded-r-[4px] bg-slate-100">
             <span className="block h-full rounded-r-[4px] bg-navy-600" style={{ width: max ? `${(r.value / max) * 100}%` : "0%" }} />
           </span>
-          <span className="w-28 text-right tabular-nums text-slate-900">{r.text}</span>
+          <span className="w-28 text-right tabular-nums text-slate-900 max-sm:w-auto max-sm:text-xs">{r.text}</span>
         </li>
       ))}
     </ul>
@@ -248,7 +248,7 @@ function Figures({ items }: { items: { label: string; value: number | string; al
       {items.map((i) => (
         <div key={i.label}>
           <dt className="text-xs text-slate-500">{i.label}</dt>
-          <dd className={`mt-1 text-2xl font-semibold tabular-nums ${i.alert ? "text-red-700" : "text-slate-900"}`}>{i.value}</dd>
+          <dd className={`mt-1 text-2xl font-semibold tabular-nums max-sm:text-xl ${i.alert ? "text-red-700" : "text-slate-900"}`}>{i.value}</dd>
         </div>
       ))}
     </dl>

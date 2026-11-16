@@ -136,7 +136,7 @@ async function Rules({ searchParams }: { searchParams: PageProps<"/rules">["sear
           <span className="w-16 text-xs font-semibold uppercase tracking-wide text-slate-500">Search</span>
           {f.status !== "all" && <input type="hidden" name="status" value={f.status} />}
           {f.forum && <input type="hidden" name="forum" value={f.forum} />}
-          <input name="q" defaultValue={f.q} placeholder="e.g. motion, I-290B, 1003.38" aria-label="Search rules" className={`${inputClass} w-64`} />
+          <input name="q" defaultValue={f.q} placeholder="e.g. motion, I-290B, 1003.38" aria-label="Search rules" className={`${inputClass} w-64 max-sm:w-auto max-sm:min-w-0 max-sm:flex-1`} />
           <Button>Search</Button>
           {(f.q || f.forum || f.status !== "all") && (
             <Link href="/rules" className="text-sm font-medium text-slate-600 hover:underline">

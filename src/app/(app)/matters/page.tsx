@@ -85,11 +85,11 @@ async function MatterList({ searchParams }: { searchParams: Promise<Record<strin
           options={[{ value: "", label: "All", count: count({ type: "" }) }, ...Object.entries(MATTER_TYPES).map(([v, l]) => ({ value: v, label: l, count: count({ type: v }) }))]}
         />
         <form action="/matters" role="search" className="flex flex-wrap items-center gap-2">
-          <span className="w-16 shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-500">Search</span>
+          <span className="w-16 shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-500 max-sm:hidden">Search</span>
           {f.show !== "open" && <input type="hidden" name="show" value={f.show} />}
           {f.focus !== "all" && <input type="hidden" name="focus" value={f.focus} />}
           {f.type && <input type="hidden" name="type" value={f.type} />}
-          <input name="q" type="search" defaultValue={f.q} placeholder="Code, summary or type" aria-label="Search matters" className={`${inputClass} w-64`} />
+          <input name="q" type="search" defaultValue={f.q} placeholder="Code, summary or type" aria-label="Search matters" className={`${inputClass} w-64 max-sm:w-auto max-sm:min-w-0 max-sm:flex-1`} />
           <Button>Search</Button>
           {filtered && (
             <Link href="/matters" className="text-sm font-medium text-slate-600 hover:underline">
@@ -124,7 +124,7 @@ async function MatterList({ searchParams }: { searchParams: Promise<Record<strin
                       <span className="block truncate text-sm text-slate-600">{m.summary}</span>
                       <span className="block text-xs text-slate-500">{label(MATTER_TYPES, m.matter_type)}</span>
                     </span>
-                    <span className="w-44 shrink-0">
+                    <span className="w-44 shrink-0 max-sm:w-[calc(50%-0.5rem)]">
                       <span className="block text-sm text-slate-900">
                         {m.stage}. {stageName(m.stage)}
                       </span>
@@ -132,7 +132,7 @@ async function MatterList({ searchParams }: { searchParams: Promise<Record<strin
                         <span className="block h-full rounded-full bg-navy-700" style={{ width: `${(m.stage / 11) * 100}%` }} />
                       </span>
                     </span>
-                    <span className="w-48 shrink-0 text-sm">
+                    <span className="w-48 shrink-0 text-sm max-sm:w-[calc(50%-0.5rem)]">
                       {!isOpen(m) ? (
                         <Badge tone="gray">{label(MATTER_STATUS, m.status)}</Badge>
                       ) : next ? (

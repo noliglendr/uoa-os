@@ -112,18 +112,20 @@ async function Settings() {
 
   return (
     <>
-      <SectionNav groups={groups.map(({ id, title }) => ({ id, title }))} />
-
-      {[...groups, ...(extra.length ? [{ id: "other", title: "Other", items: extra }] : [])].map((g) => (
-        <section key={g.id} id={g.id} className="scroll-mt-36 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <h2 className="border-b border-slate-100 bg-slate-50 px-5 py-3 text-sm font-semibold text-slate-900">{g.title}</h2>
-          <ul className="divide-y divide-slate-100">
-            {g.items.map((s) => (
-              <Row key={s.key} s={s} names={names} />
-            ))}
-          </ul>
-        </section>
-      ))}
+      <SectionNav
+        groups={[...groups, ...(extra.length ? [{ id: "other", title: "Other", items: extra, phoneOnlyTab: true }] : [])].map((g) => ({
+          id: g.id,
+          title: g.title,
+          phoneOnlyTab: "phoneOnlyTab" in g,
+          content: (
+            <ul className="divide-y divide-slate-100">
+              {g.items.map((s) => (
+                <Row key={s.key} s={s} names={names} />
+              ))}
+            </ul>
+          ),
+        }))}
+      />
     </>
   );
 }
@@ -131,7 +133,7 @@ async function Settings() {
 function Row({ s, names }: { s: Setting; names: Record<string, string> }) {
   const ui = UI[s.key] ?? { title: s.key, control: { kind: "json" } as Control };
   return (
-    <li className="grid items-start gap-3 px-5 py-4 md:grid-cols-[minmax(0,1fr)_20rem] md:gap-8">
+    <li className="grid items-start gap-3 px-5 py-4 max-sm:px-4 md:grid-cols-[minmax(0,1fr)_20rem] md:gap-8">
       <div className="min-w-0">
         <h3 className="text-sm font-semibold text-slate-900">{ui.title}</h3>
         {ui.help && <p className="mt-0.5 text-sm text-slate-500">{ui.help}</p>}
@@ -149,7 +151,7 @@ function Row({ s, names }: { s: Setting; names: Record<string, string> }) {
 }
 
 const choiceChip =
-  "cursor-pointer rounded-md px-3 py-1.5 text-center text-sm font-medium text-slate-600 transition has-[:checked]:bg-navy-800 has-[:checked]:text-white has-[:checked]:shadow-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-navy-300";
+  "cursor-pointer rounded-md px-3 py-1.5 max-sm:py-2 text-center text-sm font-medium text-slate-600 transition has-[:checked]:bg-navy-800 has-[:checked]:text-white has-[:checked]:shadow-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-navy-300";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function Editor({ control, value, label }: { control: Control; value: any; label: string }) {
@@ -178,7 +180,7 @@ function Editor({ control, value, label }: { control: Control; value: any; label
     case "numbers":
       return (
         <label className="flex items-center gap-2 text-sm text-slate-600">
-          <input name="value" aria-label={label} defaultValue={(value as number[]).join(", ")} className={`${inputClass} w-44`} />
+          <input name="value" aria-label={label} defaultValue={(value as number[]).join(", ")} className={`${inputClass} w-44 max-sm:w-auto max-sm:min-w-0 max-sm:flex-1`} />
           {control.unit}
         </label>
       );

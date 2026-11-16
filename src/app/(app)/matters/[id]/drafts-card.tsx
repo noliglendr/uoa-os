@@ -139,7 +139,7 @@ function Draft({ x, d, title }: { x: Row; d: MatterData; title: string }) {
               </select>
             </Field>
             <Field label="Note">
-              <input name="note" required className={`${inputClass} w-56`} />
+              <input name="note" required className={`${inputClass} w-56 max-sm:w-full`} />
             </Field>
             <Button>Save</Button>
           </form>

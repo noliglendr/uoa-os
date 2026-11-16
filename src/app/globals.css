@@ -197,12 +197,79 @@ details[open] > :not(summary) {
   animation: breathe 5s ease-in-out infinite;
 }
 
-/* Settings: the group the page glides to glows gold for a moment. */
-@keyframes section-flash {
-  0% { box-shadow: 0 0 0 0 rgb(214 178 90 / 0); }
-  25% { box-shadow: 0 0 0 4px rgb(214 178 90 / 0.55), 0 12px 32px -12px rgb(214 178 90 / 0.5); }
-  100% { box-shadow: 0 0 0 0 rgb(214 178 90 / 0); }
+/*
+ * Phones only (under 640px): wide tables become a stack of cards.
+ * <Table> sets --col-N (column name, or none) and --pad-N (room for it).
+ * Each cell shows its column name on the left. Desktop and tablet are unchanged.
+ */
+@media (max-width: 639px) {
+  /* Nothing pushes the page sideways on a phone; long codes and words wrap. */
+  body {
+    overflow-x: clip;
+  }
+  main {
+    overflow-wrap: break-word;
+  }
+  .stack-table thead {
+    display: none;
+  }
+  .stack-table,
+  .stack-table tbody,
+  .stack-table tr,
+  .stack-table td {
+    display: block;
+    width: 100%;
+  }
+  .stack-table tr {
+    padding: 0.625rem 1rem;
+  }
+  .stack-table td {
+    position: relative;
+    padding: 0.25rem 0 0.25rem var(--pad, 0) !important;
+    min-height: 1.75rem;
+    overflow-wrap: anywhere;
+  }
+  .stack-table td::before {
+    position: absolute;
+    left: 0;
+    top: 0.25rem;
+    width: 6.25rem;
+    font-size: 0.75rem;
+    line-height: 1.25rem;
+    font-weight: 500;
+    color: var(--color-slate-500);
+  }
+  .stack-table td:nth-child(1) { --pad: var(--pad-1); } .stack-table td:nth-child(1)::before { content: var(--col-1, none); }
+  .stack-table td:nth-child(2) { --pad: var(--pad-2); } .stack-table td:nth-child(2)::before { content: var(--col-2, none); }
+  .stack-table td:nth-child(3) { --pad: var(--pad-3); } .stack-table td:nth-child(3)::before { content: var(--col-3, none); }
+  .stack-table td:nth-child(4) { --pad: var(--pad-4); } .stack-table td:nth-child(4)::before { content: var(--col-4, none); }
+  .stack-table td:nth-child(5) { --pad: var(--pad-5); } .stack-table td:nth-child(5)::before { content: var(--col-5, none); }
+  .stack-table td:nth-child(6) { --pad: var(--pad-6); } .stack-table td:nth-child(6)::before { content: var(--col-6, none); }
+  .stack-table td:nth-child(7) { --pad: var(--pad-7); } .stack-table td:nth-child(7)::before { content: var(--col-7, none); }
+  .stack-table td:nth-child(8) { --pad: var(--pad-8); } .stack-table td:nth-child(8)::before { content: var(--col-8, none); }
+  .stack-table td:nth-child(9) { --pad: var(--pad-9); } .stack-table td:nth-child(9)::before { content: var(--col-9, none); }
+  /* The first cell is the card's title: no label, full width. */
+  .stack-table td:first-child {
+    --pad: 0;
+    font-size: 0.9375rem;
+  }
+  .stack-table td:first-child::before {
+    content: none;
+  }
+  /* Empty and hidden cells take no space. */
+  .stack-table td:empty,
+  .stack-table td.hidden {
+    display: none;
+  }
 }
-.section-flash {
-  animation: section-flash 1.3s ease-out;
+
+/* Sidebar menu: a thin, soft scrollbar that suits the navy panel.
+   Faint until the mouse is over the menu, a little brighter then. */
+.nav-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.12) transparent;
+  scrollbar-gutter: stable;
+}
+.nav-scroll:hover {
+  scrollbar-color: rgb(255 255 255 / 0.3) transparent;
 }

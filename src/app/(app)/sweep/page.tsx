@@ -75,13 +75,13 @@ async function Sweep() {
                   {dueKeys.has(i.key) && <div><Badge tone="amber">Due</Badge></div>}
                 </Td>
                 <Td className="whitespace-nowrap">
-                  <form action={recordSweepCheck} className="flex items-center gap-2">
+                  <form action={recordSweepCheck} className="flex items-center gap-2 max-sm:flex-wrap">
                     <Hidden values={{ back: "/sweep", entity_type: i.entityType, entity_id: i.entityId, matter_id: i.matterId }} />
-                    <select name="result" aria-label="Result" className={`${inputClass} w-36`}>
+                    <select name="result" aria-label="Result" className={`${inputClass} w-36 max-sm:w-full`}>
                       <option value="no_change">No change</option>
                       <option value="changed">Change found</option>
                     </select>
-                    <input name="note" aria-label="Note" placeholder="Note (no client facts)" className={`${inputClass} w-48`} />
+                    <input name="note" aria-label="Note" placeholder="Note (no client facts)" className={`${inputClass} w-48 max-sm:w-full`} />
                     <Button variant="primary">Record</Button>
                   </form>
                 </Td>

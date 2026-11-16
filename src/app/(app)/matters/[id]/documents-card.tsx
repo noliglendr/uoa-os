@@ -90,7 +90,7 @@ export function DocumentsCard({ d }: { d: MatterData }) {
                     {d.canDocs && s === "open" && (
                       <form action={cancelDocRequest} className="flex flex-wrap items-center gap-2">
                         <Hidden values={{ back: d.back, request_id: r.id }} />
-                        <input name="reason" required placeholder="Why cancel it?" aria-label="Reason for cancelling" className={`${inputClass} w-48`} />
+                        <input name="reason" required placeholder="Why cancel it?" aria-label="Reason for cancelling" className={`${inputClass} w-48 max-sm:w-full`} />
                         <ConfirmButton variant="secondary" confirm="Cancel this upload link? The client can no longer use it.">
                           Cancel link
                         </ConfirmButton>
@@ -136,9 +136,9 @@ export function DocumentsCard({ d }: { d: MatterData }) {
                           <Hidden values={{ back: d.back, document_id: x.id, decision: "accepted" }} />
                           <Button>Accept</Button>
                         </form>
-                        <form action={reviewDocument} className="flex items-center gap-1.5">
+                        <form action={reviewDocument} className="flex items-center gap-1.5 max-sm:flex-wrap">
                           <Hidden values={{ back: d.back, document_id: x.id, decision: "rejected" }} />
-                          <input name="reason" required placeholder="Why? (client sees it)" aria-label="Reason for rejecting" className={`${inputClass} w-44`} />
+                          <input name="reason" required placeholder="Why? (client sees it)" aria-label="Reason for rejecting" className={`${inputClass} w-44 max-sm:w-full`} />
                           <ConfirmButton variant="secondary" confirm="Reject this file? The client sees your reason and can upload it again.">
                             Reject
                           </ConfirmButton>

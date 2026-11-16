@@ -29,7 +29,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
         <div className="flex h-16 items-center px-5">
           <Brand />
         </div>
-        <div className="flex-1 overflow-y-auto px-3 py-3">{nav}</div>
+        <div className="nav-scroll flex-1 overflow-y-auto px-3 py-3">{nav}</div>
         <div className="border-t border-white/10 p-3">{user}</div>
       </aside>
 

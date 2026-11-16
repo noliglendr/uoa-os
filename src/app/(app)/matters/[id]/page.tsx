@@ -145,7 +145,7 @@ async function Matter({
   return (
     <>
       <header className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-navy-900/5">
-        <div className="hero relative isolate px-6 pb-6 pt-7 text-white sm:px-8">
+        <div className="hero relative isolate px-6 pb-6 pt-7 text-white max-sm:px-4 sm:px-8">
           <div className="hero-grid absolute inset-0 -z-10" aria-hidden />
           <div className="absolute -right-16 -top-24 -z-10 h-64 w-64 rounded-full bg-gold-400/25 blur-3xl" aria-hidden />
           <span className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-gold-400 via-gold-300 to-transparent" aria-hidden />
@@ -170,7 +170,7 @@ async function Matter({
             </div>
           </div>
         </div>
-        <div className="px-6 pb-5 sm:px-8">
+        <div className="px-6 pb-5 max-sm:px-4 sm:px-8">
           <StageBar stage={matter.stage} closed={matter.status === "closed"} />
         </div>
       </header>
@@ -256,13 +256,13 @@ function StageBar({ stage, closed }: { stage: number; closed: boolean }) {
             <li key={s.n} className="flex flex-1 items-center last:flex-none" title={`${s.n}. ${s.name}`}>
               <span
                 aria-current={here ? "step" : undefined}
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold max-sm:h-5 max-sm:w-5 max-sm:text-[10px] ${
                   done ? "bg-navy-800 text-white" : here ? "bg-white text-navy-900 ring-2 ring-gold-400" : "bg-slate-100 text-slate-400"
                 }`}
               >
-                {done ? <Icon name="check" className="h-3.5 w-3.5" /> : s.n}
+                {done ? <Icon name="check" className="h-3.5 w-3.5 max-sm:h-3 max-sm:w-3" /> : s.n}
               </span>
-              {i < STAGES.length - 1 && <span className={`mx-1 h-0.5 flex-1 rounded ${s.n < stage || closed ? "bg-navy-800" : "bg-slate-200"}`} />}
+              {i < STAGES.length - 1 && <span className={`mx-1 h-0.5 flex-1 rounded max-sm:mx-0.5 ${s.n < stage || closed ? "bg-navy-800" : "bg-slate-200"}`} />}
             </li>
           );
         })}

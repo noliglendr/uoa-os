@@ -49,7 +49,7 @@ export default function NewMatterPage({ searchParams }: PageProps<"/matters/new"
             before engagement.
           </p>
           <Field label="Engagement alert date" hint="Escalate if the retainer is not signed by this date">
-            <input type="date" name="engagement_alert_date" className={`${inputClass} w-48`} />
+            <input type="date" name="engagement_alert_date" className={`${inputClass} w-48 max-sm:w-full`} />
           </Field>
 
           <fieldset className="grid gap-2">

@@ -149,7 +149,7 @@ async function Outbox({ searchParams }: { searchParams: PageProps<"/outbox">["se
                       </form>
                       <form action={cancelMessage} className="flex flex-wrap items-end gap-2">
                         <Hidden values={{ back, message_id: m.id }} />
-                        <input name="reason" required placeholder="Why not send it?" aria-label="Reason for not sending" className={`${inputClass} w-48`} />
+                        <input name="reason" required placeholder="Why not send it?" aria-label="Reason for not sending" className={`${inputClass} w-48 max-sm:w-full`} />
                         <ConfirmButton variant="secondary" confirm={`${m.matter.code}: don't send this message? It is kept in the record as cancelled.`}>
                           Don&apos;t send
                         </ConfirmButton>

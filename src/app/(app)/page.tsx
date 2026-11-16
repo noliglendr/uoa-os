@@ -642,7 +642,7 @@ function ApprovalPanel({ w, code, attorney, checks }: { w: WorkItem; code: strin
         {attorney && (
           <form action={approveGate} className="flex flex-wrap items-center gap-2">
             <Hidden values={{ back: "/", matter_id: w.matterId, stage: a.stage, cycle_id: a.cycleId }} />
-            <input name="note" placeholder="Note (optional)" aria-label="Note" className={`${inputClass} w-64`} />
+            <input name="note" placeholder="Note (optional)" aria-label="Note" className={`${inputClass} w-64 max-sm:w-full`} />
             <ConfirmButton variant="primary" confirm={`${code}: ${w.title}?\n\nThis approval is permanent and is logged with your name and the time.`}>
               <Icon name="check" /> Approve
             </ConfirmButton>
@@ -716,7 +716,7 @@ function ApprovalPanel({ w, code, attorney, checks }: { w: WorkItem; code: strin
           $
           <input name="amount" required inputMode="decimal" defaultValue={a.amount != null ? (a.amount / 100).toFixed(2) : ""} placeholder="Amount" aria-label="Amount in dollars" className={`${inputClass} w-32`} />
         </label>
-        <input name="note" defaultValue={a.note ?? ""} placeholder="Note (optional)" aria-label="Note" className={`${inputClass} w-48`} />
+        <input name="note" defaultValue={a.note ?? ""} placeholder="Note (optional)" aria-label="Note" className={`${inputClass} w-48 max-sm:w-full`} />
         <Button>Save amount</Button>
       </form>
       <form action={approveInvoice}>

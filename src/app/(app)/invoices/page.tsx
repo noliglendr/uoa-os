@@ -101,7 +101,7 @@ async function Invoices({ searchParams }: { searchParams: PageProps<"/invoices">
                         $
                         <input name="amount" required inputMode="decimal" defaultValue={i.amount_cents != null ? (i.amount_cents / 100).toFixed(2) : ""} placeholder="Amount" aria-label="Amount in dollars" className={`${inputClass} w-32`} />
                       </label>
-                      <input name="note" defaultValue={i.note ?? ""} placeholder="Note (optional)" aria-label="Note" className={`${inputClass} w-56`} />
+                      <input name="note" defaultValue={i.note ?? ""} placeholder="Note (optional)" aria-label="Note" className={`${inputClass} w-56 max-sm:w-full`} />
                       <Button variant="secondary">Save</Button>
                     </form>
                     <div className="flex flex-wrap items-center gap-3">
@@ -130,7 +130,7 @@ async function Invoices({ searchParams }: { searchParams: PageProps<"/invoices">
                 {i.note && <p className="text-sm text-slate-700">Note: {i.note}</p>}
                 <form action={recordInvoiceSent} className="flex flex-wrap items-end gap-2">
                   <Hidden values={{ back: backOf("enter"), invoice_id: i.id }} />
-                  <input name="billing_ref" required placeholder="Billing tool invoice no." aria-label="Billing tool invoice number" className={`${inputClass} w-56`} />
+                  <input name="billing_ref" required placeholder="Billing tool invoice no." aria-label="Billing tool invoice number" className={`${inputClass} w-56 max-sm:w-full`} />
                   <ConfirmButton variant="primary" confirm={`${i.matter.code}: did you enter this invoice in the billing tool?`}>
                     <Icon name="check" /> Mark entered
                   </ConfirmButton>
@@ -211,7 +211,7 @@ function VoidForm({ id, code, back }: { id: string; code: string; back: string }
     <Disclosure chevron={false} buttonClassName="text-sm font-medium text-slate-500 hover:text-red-700 hover:underline" summary={<span>Void instead</span>}>
       <form action={voidInvoice} className="mt-2 flex flex-wrap items-end gap-2">
         <Hidden values={{ back, invoice_id: id }} />
-        <input name="reason" required placeholder="Why void it?" aria-label="Reason for voiding" className={`${inputClass} w-56`} />
+        <input name="reason" required placeholder="Why void it?" aria-label="Reason for voiding" className={`${inputClass} w-56 max-sm:w-full`} />
         <ConfirmButton variant="secondary" confirm={`${code}: void this invoice? It stays in the record as void.`}>
           Void
         </ConfirmButton>

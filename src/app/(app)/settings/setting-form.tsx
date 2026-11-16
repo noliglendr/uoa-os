@@ -37,18 +37,18 @@ export function SettingForm({ children }: { children: ReactNode }) {
     >
       {children}
       {dirty && (
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center justify-end gap-2 max-sm:grid max-sm:grid-cols-2">
           <button
             type="button"
             onClick={() => {
               ref.current?.reset();
               setDirty(false);
             }}
-            className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100"
+            className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 max-sm:h-10 max-sm:ring-1 max-sm:ring-slate-300"
           >
             Cancel
           </button>
-          <Button variant="primary">Save</Button>
+          <Button variant="primary" className="max-sm:h-10">Save</Button>
         </div>
       )}
     </form>

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { ErrorToast } from "./error-toast";
 import { Icon, type IconName } from "./icons";
 import { inputClass, letterBoxClass, letterRows } from "./styles";
@@ -150,10 +150,24 @@ export async function ErrorBanner({ searchParams }: { searchParams: Promise<Reco
   return <ErrorToast message={String(error)} />;
 }
 
+/**
+ * A data table. On phones, a table with more than three columns turns into a
+ * stack of cards: each row is a card and each cell shows its column name
+ * (see .stack-table in globals.css). Desktop is unchanged.
+ */
 export function Table({ head, children }: { head: string[]; children: ReactNode }) {
+  const stack = head.length > 3;
+  const labels = stack
+    ? (Object.fromEntries(
+        head.flatMap((h, i) => [
+          [`--col-${i + 1}`, h ? JSON.stringify(h) : "none"],
+          [`--pad-${i + 1}`, h ? "7rem" : "0"],
+        ]),
+      ) as CSSProperties)
+    : undefined;
   return (
     <div className="-mx-4 overflow-x-auto">
-      <table className="w-full text-left text-sm">
+      <table className={`w-full text-left text-sm ${stack ? "stack-table" : ""}`} style={labels}>
         <thead className="border-y border-slate-100 bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-500">
           <tr>
             {head.map((h, i) => (

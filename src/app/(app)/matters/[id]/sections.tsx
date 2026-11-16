@@ -449,9 +449,9 @@ export function NoticesCard({ d }: { d: MatterData }) {
                 <Td>
                   <div className={`flex flex-col gap-1 ${d.canWork ? "" : "hidden"}`}>
                     {review && d.attorney && (
-                      <form action={recordNoDeadline} className="flex gap-1">
+                      <form action={recordNoDeadline} className="flex gap-1 max-sm:flex-wrap">
                         <Hidden values={{ back: d.back, notice_id: n.id }} />
-                        <input name="reason" required placeholder="Why no deadline" className={`${inputClass} w-36`} />
+                        <input name="reason" required placeholder="Why no deadline" className={`${inputClass} w-36 max-sm:w-full`} />
                         <Button>No deadline</Button>
                       </form>
                     )}
@@ -918,7 +918,7 @@ export function AppearancesCard({ d }: { d: MatterData }) {
                 {a.status === "open" && d.canWork && (
                   <div className="flex flex-col gap-1">
                     <Inline action={updateAppearance} values={{ back: d.back, appearance_id: a.id, status: "transferred" }}>
-                      <input name="target_code" required placeholder="Successor matter code" className={`${inputClass} w-40`} />
+                      <input name="target_code" required placeholder="Successor matter code" className={`${inputClass} w-40 max-sm:w-full`} />
                       <ConfirmButton variant="secondary" confirm="Transfer this appearance to the successor matter? This is logged.">
                         Transfer
                       </ConfirmButton>
